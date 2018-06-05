@@ -1,0 +1,7 @@
+<launch>
+
+  <node name="vrpn_client" pkg="vrpn_client_ros" type="vrpn_client_node" args="_server:=192.168.0.103 _refresh_tracker_frequenct:=10" />
+
+  <node name="vrpn_trans" pkg="vrpn_transform" type="vrpn_transform_node" args="_vrpn_topic:=vrpn_client/kbblue/pose" />
+
+</launch>
