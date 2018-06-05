@@ -7,3 +7,9 @@
 [submodule "catkin_ws/src/timed_roslaunch"]
 	path = catkin_ws/src/timed_roslaunch
 	url = https://github.com/MoriKen254/timed_roslaunch.git
+[submodule "catkin_ws/src/vrpn_client_ros"]
+	path = catkin_ws/src/vrpn_client_ros
+	url = https://github.com/ros-drivers/vrpn_client_ros.git
+[submodule "catkin_ws/src/vrpn_transform"]
+	path = catkin_ws/src/vrpn_transform
+	url = git@magiccvs.byu.edu:lab/vrpn_transform.git
