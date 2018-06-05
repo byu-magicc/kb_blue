@@ -12,4 +12,4 @@
 	url = https://github.com/ros-drivers/vrpn_client_ros.git
 [submodule "catkin_ws/src/vrpn_transform"]
 	path = catkin_ws/src/vrpn_transform
-	url = git@magiccvs.byu.edu:lab/vrpn_transform.git
+	url = https://magiccvs.byu.edu/gitlab/lab/vrpn_transform.git 
