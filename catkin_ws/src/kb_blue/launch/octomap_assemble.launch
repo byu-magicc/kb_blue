@@ -1,0 +1,11 @@
+<launch>
+  <arg name="db_path" default="~/ros_data/databases/lab_5_31.db"/>
+  <arg name="rviz_cfg"  default="$(find mapping_3d)/rviz/database_octo_loader.rviz" />
+  <node pkg="rtabmap_ros" type="rtabmap" name="rtabmap" args="_Mem/IncrementalMemory:=false _database_path:=$(arg db_path)"/>
+  <node pkg="rtabmap_ros" type="map_assembler" name="map_assembler" args="_cloud_voxel_size:=0.05"/>
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server_node" args="cloud_in:=assembled_clouds"/>
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_cfg)">
+    <remap from="/rtabmap/get_map" to="/get_map"/>
+  </node>
+  <node pkg="rosservice" type="rosservice" name="map_pub" args="call --wait /publish_map 1 1 0"/>
+</launch>

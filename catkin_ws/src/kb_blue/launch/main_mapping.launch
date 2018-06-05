@@ -1,0 +1,29 @@
+<launch>
+
+  <arg name="name"/>
+  <arg name="record_bag" default="true"/>
+
+  <node name="base_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 camera_link base_link 100"/>
+
+    <!--Launch Realsense and RTAB Map-->
+  <include file="$(find mapping_3d)/launch/d435.launch"/>
+  <include file="$(find mapping_3d)/launch/leo_rtab.launch"/>
+  
+
+  <node pkg="kb_utils" name="kb_utils" type="kb_driver.py" args="/dev/ttyACM0" />
+
+  <!--Record -->
+  <node if="$(arg record_bag)" name ="record" pkg="rosbag" type ="record" args="-O $(arg name)
+     camera/aligned_depth_to_color/image_raw/compressedDepth
+     camera/color/image_rect_color/compressed
+     camera/color/camera_info
+     camera/depth/camera_info
+     /tf
+     /tf_static
+     /command
+     /encoder
+     /sonar"
+     output="screen"/>
+  
+
+  </launch>

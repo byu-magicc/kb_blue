@@ -1,3 +1,9 @@
 [submodule "catkin_ws/src/kbhackathon"]
 	path = catkin_ws/src/kbhackathon
 	url = https://github.com/byu-magicc/kbhackathon.git
+[submodule "catkin_ws/src/realsense"]
+	path = catkin_ws/src/realsense
+	url = https://github.com/intel-ros/realsense.git
+[submodule "catkin_ws/src/timed_roslaunch"]
+	path = catkin_ws/src/timed_roslaunch
+	url = https://github.com/MoriKen254/timed_roslaunch.git
