@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 Copyright (c) 2018 Intel Corporation
 
@@ -40,7 +41,7 @@ Processing enabled by this node:
 <launch>
   <arg name="namespace"           default="camera"/>
   <arg name="manager"             default="realsense2_camera_manager"/>
-:
+
   <!-- Camera device specific arguments -->
 
   <arg name="serial_no"           default=""/>
@@ -213,7 +214,7 @@ Processing enabled by this node:
         <remap from = "image" to="depth_registered/image"/>
       </node>
     </group>
-    <node pkg="mapping_3d" type="grayscaler.py" name="grayscaler"/>
+    <node pkg="kb_blue" type="grayscaler.py" name="grayscaler"/>
 
 
   </group>
@@ -222,16 +223,15 @@ Processing enabled by this node:
       git clone https://github.com/MoriKen254/timed_roslaunch.git -->
   <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch">
     <arg name="time" value="4" />
-    <arg name="pkg" value="mapping_3d" />
+    <arg name="pkg" value="kb_blue" />
     <arg name="file" value="ir_exp_off.launch" />
     <arg name="node_name" value="depth_auto_exp_off" />
   </include>
 
   <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch">
     <arg name="time" value="5" />
-    <arg name="pkg" value="mapping_3d" />
+    <arg name="pkg" value="kb_blue" />
     <arg name="file" value="ir_exp_on.launch" />
     <arg name="node_name" value="depth_auto_exp_on" />
   </include>
-
 </launch>

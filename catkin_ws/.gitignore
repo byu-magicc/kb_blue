@@ -54,3 +54,6 @@ CATKIN_IGNORE
 
 # MATLAB ROS
 src/matlab_gen
+
+CMakeCache.txt
+CMakeFiles
