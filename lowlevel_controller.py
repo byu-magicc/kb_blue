@@ -103,12 +103,12 @@ class LowLevelControl:
     #
 
     def bPidRun( self, event ):
-        self.err_vel_prev, self.err_vel_int, self.vel_PWM = bPid( self.vel_cur, self.vel_des_cur, self.kp_vel, self.kd_vel, self.ki_vel, self.ki_vel_inv, self.scale_err_int_vel, self.al_vel, self.use_P_vel, self.use_D_vel, self.use_I_vel, self.sat_vel_min, self.sat_vel_max, self.err_vel_prev, self.err_vel_int )
+        self.err_vel_prev, self.err_vel_int, self.vel_PWM = self.bPid( self.vel_cur, self.vel_des_cur, self.kp_vel, self.kd_vel, self.ki_vel, self.ki_vel_inv, self.scale_err_int_vel, self.al_vel, self.use_P_vel, self.use_D_vel, self.use_I_vel, self.sat_vel_min, self.sat_vel_max, self.err_vel_prev, self.err_vel_int )
         self.err_steer_prev, self.err_steer_int, self.steer_PWM = bPid( self.steer_cur, self.steer_des_cur, self.kp_steer, self.kd_steer, self.ki_steer, self.ki_steer_inv, self.scale_err_int_steer, self.al_steer, self.use_P_steer, self.use_D_steer, self.use_I_steer, self.sat_steer_min, self.sat_steer_max, self.err_steer_prev, self.err_steer_int )
     #
 
     def dPidRun( self, event ):
-        self.err_vel_prev, self.err_vel_int, self.vel_PWM = dPid( self.vel_cur, self.vel_des_cur, self.kp_vel, self.kd_vel, self.ki_vel, self.ki_vel_inv, self.use_P_vel, self.use_D_vel, self.use_I_vel, self.sat_vel_min, self.sat_vel_max, self.err_vel_prev, self.err_vel_int )
+        self.err_vel_prev, self.err_vel_int, self.vel_PWM = self.dPid( self.vel_cur, self.vel_des_cur, self.kp_vel, self.kd_vel, self.ki_vel, self.ki_vel_inv, self.use_P_vel, self.use_D_vel, self.use_I_vel, self.sat_vel_min, self.sat_vel_max, self.err_vel_prev, self.err_vel_int )
         self.err_steer_prev, self.err_steer_int, self.steer_PWM = dPid( self.steer_cur, self.steer_des_cur, self.kp_steer, self.kd_steer, self.ki_steer, self.ki_steer_inv, self.use_P_steer, self.use_D_steer, self.use_I_steer, self.sat_steer_min, self.sat_steer_max, self.err_steer_prev, self.err_steer_int )
 
     def bPid( self, cur, des_cur, kp, kd, ki, ki_inv, scale_err_int, al, use_P, use_D, use_I, sat_min, sat_max, err_prev, err_int ):
@@ -129,7 +129,7 @@ class LowLevelControl:
             if not derivative is None:
                 self.derivative = derivative
             elif dt > self.min_dt:
-                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.error)
+                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.last_error)
             else:
                 self.derivative = 0.0
             #
@@ -188,7 +188,7 @@ class LowLevelControl:
             if not derivative is None:
                 self.derivative = derivative
             elif dt > 0.0001:
-                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.error)
+                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.last_error)
             else:
                 self.derivative = 0.0
             d_term = -kd * self.derivative
