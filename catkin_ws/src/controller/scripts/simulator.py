@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import rospy
-from kb_utils.msg import Command
+from controller.msg import Drive
+from geometry_msgs.msg import Pose2D
 
 import numpy as np
 
@@ -12,18 +13,19 @@ class Simulator:
         self.pos = np.zeros((2, 1))
         self.theta = 0.0
 
-        self.v = 0.1 # velocity
-        self.gamma = 0.01 # steering angle
+        self.v = 0.0 # velocity
+        self.gamma = 0.0 # steering angle
 
-        self.command_sub = rospy.Subscriber("command", Command, self.command_callback)
+        self.drive_sub = rospy.Subscriber("drive", Drive, self.drive_callback)
+        self.pose_pub = rospy.Publisher("pose", Pose2D, queue_size=1)
         self.dynamics_timer = rospy.Timer(rospy.Duration(0.01), self.dynamics_timer_callback)
 
     def init_plot(self):
         pass
 
-    def command_callback(self, msg):
-        self.v = msg.throttle
-        self.gamma = msg.steer
+    def drive_callback(self, msg):
+        self.v = msg.velocity
+        self.gamma = msg.steering
 
     def dynamics_timer_callback(self, event):
         if event.last_real:
@@ -33,7 +35,13 @@ class Simulator:
 
         self.pos[0] += (self.v * np.cos(self.theta)) * dt
         self.pos[1] += (self.v * np.sin(self.theta)) * dt
-        self.theta += (self.v / self.L * np.tan(self.theta)) * dt
+        self.theta += (self.v / self.L * np.tan(self.gamma)) * dt
+
+        msg = Pose2D()
+        msg.x = self.pos[0]
+        msg.y = self.pos[1]
+        msg.theta = self.theta
+        self.pose_pub.publish(msg)
 
 if __name__ == '__main__':
     rospy.init_node("simulator", anonymous=False)

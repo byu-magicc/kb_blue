@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
-from kb_utils.msg import Command
+from geometry_msgs.msg import Pose2D
+from controller.msg import Drive
 from nav_msgs.msg import Path
 
-from tf.transformations import euler_from_quaternion
+# from tf.transformations import euler_from_quaternion
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -85,13 +85,13 @@ class PID:
 class TrajectoryController:
     def __init__(self, follow_distance):
         self.d = follow_distance
-        self.angle_PID = PID(0.1, 0, 0, -0.35, 0.35)
-        self.distance_PID = PID(0.5, 0, 0.05, 0.0, 3.0)
+        self.angle_PID = PID(1.0, 0, 0, -0.35, 0.35)
+        self.distance_PID = PID(5.0, 0, 0.0, 0.0, 3.0)
 
     def run(self, goal, position, heading, dt):
         distance_error = np.linalg.norm(goal - position) - self.d
 
-        desired_heading = np.atan2(goal[1] - position[1], goal[0] - position[0])
+        desired_heading = np.arctan2(goal[1] - position[1], goal[0] - position[0])
         angle_error = desired_heading - heading
 
         while angle_error > np.pi:
@@ -118,15 +118,15 @@ class Manager:
         self.heading = 0.5
 
         self.nominal_delta = rospy.get_param("delta", 0.1)
-        self.lead_distance = rospy.get_param("lead_distance", 0.5)
-        self.follow_distance = rospy.get_param("follow_distance", 0.4)
+        self.lead_distance = rospy.get_param("lead_distance", 1.0)
+        self.follow_distance = rospy.get_param("follow_distance", 0.8)
 
         self.trajectory_controller = TrajectoryController(self.follow_distance)
         self.last_controller_time = None
 
         # TEMP
-        # self.waypoints = np.array([[1.0,2.0,1.0],[0.0,1.0,2.0]])
         self.waypoints = [ np.array([[1.0],[0.0]]), np.array([[2.0],[1.0]]), np.array([[1.0],[2.0]]) ]
+        # self.waypoints = [ np.array([[10.0],[0.0]]), np.array([[20.0],[10.0]]), np.array([[10.0],[20.0]]) ]
         self.generate_path()
         self.have_waypoints = True
         # end TEMP
@@ -135,11 +135,11 @@ class Manager:
 
         self.vehicle_marker = np.array([[0.1,-0.1,-0.03,-0.1,0.1],[0.0,0.07,0.0,-0.07,0.0]])
 
-        self.pose_sub = rospy.Subscriber("pose", PoseStamped, self.pose_callback)
+        self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
         self.waypoints_sub = rospy.Subscriber("path", Path, self.waypoints_callback)
 
-        self.goal_pub = rospy.Publisher("goal", PoseStamped, queue_size=1)
-        self.command_pub = rospy.Publisher("command", Command, queue_size=1) # TODO this is a high-level command, not low-level
+        self.goal_pub = rospy.Publisher("goal", Pose2D, queue_size=1)
+        self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
 
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
@@ -150,21 +150,22 @@ class Manager:
             dt = 0.0
         self.last_controller_time = rospy.Time.now()
 
-        self.position = np.array([[msg.pose.position.x], [msg.pose.position.y]])
-        _, _, self.heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
+        # self.position = np.array([[msg.pose.position.x], [msg.pose.position.y]])
+        # _, _, self.heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
+        self.position = np.array([[msg.x], [msg.y]])
+        self.heading = msg.theta
 
         self.compute_goal()
         self.run_controller(dt)
 
-        cmd_msg = Command()
-        cmd_msg.steer = self.steering
-        cmd_msg.throttle = self.velocity
-        self.command_pub.publish(cmd_msg)
+        drive_msg = Drive()
+        drive_msg.steering = self.steering
+        drive_msg.velocity = self.velocity
+        self.command_pub.publish(drive_msg)
 
-        goal_msg = PoseStamped()
-        goal_msg.header = msg.header
-        goal_msg.pose.position.x = self.goal[0]
-        goal_msg.pose.position.y = self.goal[1]
+        goal_msg = Pose2D()
+        goal_msg.x = self.goal[0]
+        goal_msg.y = self.goal[1]
         self.goal_pub.publish(goal_msg)
 
     def waypoints_callback(self, msg):
@@ -193,13 +194,12 @@ class Manager:
         if self.have_waypoints:
             self.ax.clear()
 
-            # self.ax.plot(self.waypoints[0,:], self.waypoints[1,:], 'b*')
             self.ax.plot([w[0] for w in self.waypoints], [w[1] for w in self.waypoints], 'bs')
             self.ax.plot([p[0] for p in self.path], [p[1] for p in self.path], 'r.')
 
             self.ax.plot(self.goal[0], self.goal[1], 'go')
 
-            R = np.array([[np.cos(self.heading), np.sin(self.heading)],[-np.sin(self.heading), np.cos(self.heading)]])
+            R = np.array([[np.cos(self.heading), np.sin(self.heading)],[-np.sin(self.heading), np.cos(self.heading)]]).T
             vehicle = R.dot(self.vehicle_marker) + self.position
             self.ax.plot(vehicle[0,:], vehicle[1,:], 'k-')
 
