@@ -8,6 +8,12 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
 )
 
+add_message_files(
+  FILES
+  Drive.msg
+)
+generate_messages()
+
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES controller
