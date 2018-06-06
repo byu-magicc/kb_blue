@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 
 import rospy
+from sensor_msgs.msg import Imu
+from controller.msg import Drive
+from kb_utils.msg import Command, Encoder
 
+from collections import deque
 
+from math import atan
+import numpy as np
 
 # ======================================
 # ======================================
@@ -32,12 +38,7 @@ class PID:
         # alpha subtracted from 1
         self.alpha_sf1 = 1.0 - self.alpha
         self.tau2x = 2.0 * self.tau
-        # create dt and half_dt, will BOTH be assigned in SUBSCRIBER callback
-        self.dt = 0.01
-        self.half_dt = 0.5 * self.dt
-        # derivative first term scaling value
-        self.der_term1_scale = ( self.tau2x - ctl.dt ) / ( self.tau2x + ctl.dt )
-        self.der_term2_scale = 2.0 / ( self.tau2x + ctl.dt )
+
 
         # 'static' of derivative for time=t-1
         self.err_derivative = 0.0
@@ -51,7 +52,11 @@ class PID:
         self.err_prev = 0.0
     #
 
-    def compute_pid( self, derivative=None ):
+    def compute_pid( self, dt, half_dt, val_cur, val_des_cur, derivative=None ):
+
+        # compute error
+        self.err_prev = self.err
+        self.err = val_cur - val_des_cur
 
         # proportional term
         if self.use_P:
@@ -63,8 +68,8 @@ class PID:
         if self.use_D:
             if not derivative is None:
                 self.derivative = derivative
-            elif ctl.dt > 0.0001:
-                self.err_derivative = self.der_term1_scale * self.err_derivative + self.der_term2_scale * ( self.err - self.err_prev )
+            elif dt > 0.0001:
+                self.err_derivative = ( self.tau2x - dt ) / ( self.tau2x + dt ) * self.err_derivative + 2.0 / ( self.tau2x + dt ) * ( self.err - self.err_prev )
             else:
                 self.derivative = 0.0
             d_term = -self.kd * self.derivative
@@ -84,32 +89,25 @@ class PID:
         i_term = 0.0
 
         if self.sat_min < pd_pre < self.sat_max:
-            self.err_integral = self.err_integral + self.half_dt * ( self.err + self.err_prev )
+            self.err_integral = self.err_integral + half_dt * ( self.err + self.err_prev )
 
             i_term = self.ki * self.err_integral
 
             pdi_pre = pd_pre + i_term
 
-            if not sat_min < pdi_pre:
+            if sat_min > pdi_pre:
                 i_term = sat_min - pd_pre
-                scale_err_int_flag = 1
-            elif not pdi_pre < sat_max:
-                i_term = sat_max - pd_pre
-                scale_err_int_flag = 1
-            #
-
-            if scale_err_int_flag:
                 self.err_integral = i_term * ki_inv
-                scale_err_int_flag = 0
+            elif pdi_pre > sat_max:
+                i_term = sat_max - pd_pre
+                self.err_integral = i_term * ki_inv
             #
-
         else:
             self.err_integral = 0.0
         #
 
         pid_out = pd_pre + i_term
 
-        # self.publish( pid_out )
         return pid_out
 
         #
@@ -135,7 +133,10 @@ class LowLevelControl:
         self.steer_des_cur = 0.0
         self.steer_des_prev = 0.0
 
-        self.pid_timer_dt = 0.1
+        self.steer_cur = 0.0
+        self.steer_prev = 0.0
+
+        # self.pid_timer_dt = 0.1
 
         # ======================================
         # create instance of pid class
@@ -166,32 +167,54 @@ class LowLevelControl:
 
         # ======================================
 
+        self.time_prev = None
+
+        self.omega_cur_buffer = deque( maxlen=20 )
+
         # subscribers
-        # -- current velocity and steering angle
-        self.vel_sub = rospy.Subscriber( "velocity", Velocity, self.getVel )
-        self.omega_sub = rospy.Subscriber( "omega", Omega, self.getOmega )
-        # -- current desired velocity and steering angle
-        self.vel_des_sub = rospy.Subscriber( "velocity", Velocity, self.getVelDes )
-        self.steer_des_sub = rospy.Subscriber( "steer", Steer, self.getSteerDes )
+        # -- current frame omega
+        self.imu_sub = rospy.Subscriber( "imu/data", Imu, self.getOmega )
+        # -- current velocity
+        self.encoder_sub = rospy.Subscriber( "encoder", Encoder, self.getVel )
+        # -- current desired velocity and steering
+        self.drive_sub = rospy.Subscriber( "drive", Drive, self.getDesired )
 
-        # publishers, vel_com(mand), steer_com(mand)
-        self.vel_pub = rospy.Publisher( "velocity", VelPWM, queue_size=1 )
-        self.steer_pub = rospy.Publisher( "steer", SteerPWM, queue_size=1 )
-
-        # # run the pid loops
-        # self.vel_pid = rospy.Timer( rospy.Duration( self.pid_timer_dt ), self.bPidRun )
-        # self.vel_pid = rospy.Timer( rospy.Duration( self.pid_timer_dt ), self.dPidRun )
+        # publisher, vel_com(mand), steer_com(mand)
+        self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
 
     #
 
     def getVel( self, msg ):
+
+        # compute dt and half_dt for compute_pid
+        if not self.time_prev is None:
+            dt = ( rospy.Time.now() - self.time_prev ).to_sec()
+        else:
+            dt = 0.0
+        half_dt = 0.5 * dt
+
         self.vel_prev = self.vel_cur
         self.vel_cur = msg.velocity
 
         # add a low pass filter here, as we read the value, instead of in PID?
         self.vel_cur = self.al_vel * self.vel_cur + self.al_vel_sf1 * self.vel_prev
 
-        # TODO: compute self.vel_ctl.dt and self.vel_ctl.half_dt
+
+        omega_cur_average = np.mean( self.omega_cur_buffer )
+
+        if abs(self.vel_cur) > 0.2:
+            self.steer_cur = self.al_steer * self.steer_prev + self.al_steer_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
+            self.steer_prev = self.steer_cur
+
+        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur )
+
+        # ======================================
+
+        # steering control
+
+        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
+
+        self.command_pub( throttle=vel_cmd_out, steer=steer_cmd_out )
 
         #
     #
@@ -200,53 +223,18 @@ class LowLevelControl:
         # self.steer_cur = msg.steer
 
         self.omega_prev = self.omega_cur
-        self.omega_cur = msg.omega
+        self.omega_cur = msg.angular_velocity.z
 
-        # low pass filter the omega
-        self.omega_cur = self.al_omega * self.omega_cur + self.al_omega_sf1 * self.omega_prev
+        self.omega_cur_buffer.append( self.omega_cur )
 
-        # add a low pass here, instead of in PID?
-        self.steer_cur = self.steer_tp1 # steer time+1 (next steer angle, using current for other equations, as suggested by Dan )
-        self.steer_tp1 = self.al_steer * self.steer_cur + self.al_steer_sf1 * atan( self.omega_cur * self.whl_base / self.vel_cur )
-
-        # TODO: compute self.steer_ctl.dt and self.steer_ctl.half_dt OR put in getSteerDes ??
-
-        #
     #
-    def getVelDes( self, msg ):
+
+    def getDesired( self, msg ):
         self.vel_des_cur = msg.velocity
-        #
-    #
-    def getSteerDes( self, msg ):
-        self.steer_des_cur = msg.steer
-        #
-    #
+        self.steer_des_cur = msg.steering
 
-    def low_control_inf( self ):
-        while True:
 
-            # velocity control
 
-            # compute error
-            self.vel_ctl.err_prev = self.vel_ctl.err
-            self.vel_ctl.err = self.vel_des_cur - self.vel_cur
-
-            vel_com_out = self.vel_ctl.compute_pid()
-
-            self.vel_pub( vel_com_out )
-
-            # ======================================
-
-            # steering control
-            self.steer_ctl.err_prev = self.steer_ctl.err
-            self.steer_ctl.err = self.steer_des_cur - self.steer_cur
-
-            steer_com_out = self.steer_ctl.compute_pid()
-
-            self.steer_pub( steer_com_out )
-
-        #
-    #
 
 #
 
