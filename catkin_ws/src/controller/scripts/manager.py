@@ -42,7 +42,7 @@ class PID:
             if not derivative is None:
                 self.derivative = derivative
             elif dt > 0.0001:
-                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.error)
+                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.last_error)
             else:
                 self.derivative = 0.0
             d_term = -self.kd * self.derivative
