@@ -6,3 +6,6 @@ __pycache__
 # ROS bags
 *.bag
 *.bag.active
+
+# ORB_SLAM2 map
+map.bin

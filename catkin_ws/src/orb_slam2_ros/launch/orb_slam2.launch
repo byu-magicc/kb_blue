@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <node pkg="orb_slam2_ros" name="orb_slam2" type="orb_slam2" />
+
+</launch>

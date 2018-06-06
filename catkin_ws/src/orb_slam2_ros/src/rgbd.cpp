@@ -10,6 +10,8 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <sensor_msgs/Image.h>
+
 #include <opencv2/core/core.hpp>
 
 #include "orb_slam2_ros/image_grabber.h"
@@ -31,9 +33,14 @@ int main(int argc, char** argv) {
   nh_private.param<std::string>("vocabulary", path_vocab, "/home/plusk01/dev/kb_blue/catkin_ws/build/orb_slam2_ros/orbslam2-download/src/Vocabulary/ORBvoc.txt");
   nh_private.param<std::string>("settings", path_settings, "/home/plusk01/dev/kb_blue/catkin_ws/src/kb_blue/param/d435.yaml");
 
-
+  // SLAMing options
+  bool show_gui, save_map, localize_only;
+  nh_private.param<bool>("show_gui", show_gui, false);
+  nh_private.param<bool>("save_map", save_map, true);
+  nh_private.param<bool>("localize_only", localize_only, false);
+  
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  ORB_SLAM2::System SLAM(path_vocab, path_settings, ORB_SLAM2::System::RGBD, true);
+  ORB_SLAM2::System SLAM(path_vocab, path_settings, ORB_SLAM2::System::RGBD, show_gui, save_map && !localize_only);
 
   // instantiate an object
   orb_slam2_ros::ImageGrabber igb(&SLAM);
@@ -44,13 +51,18 @@ int main(int argc, char** argv) {
   message_filters::Synchronizer<sync_pol> sync(sync_pol(100), sub_rgb, sub_depth);
   sync.registerCallback(std::bind(&orb_slam2_ros::ImageGrabber::GrabRGBD, &igb, std::placeholders::_1, std::placeholders::_2));
 
+  if (localize_only)
+  {
+    SLAM.ActivateLocalizationMode();
+  }
+
   ros::spin();
 
   // Stop all threads
   SLAM.Shutdown();
 
   // Save camera trajectory
-  SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+  // SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
   ros::shutdown();
 
