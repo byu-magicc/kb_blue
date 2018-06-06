@@ -13,6 +13,8 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <tf/transform_datatypes.h>
 
+#include <image_transport/image_transport.h>
+
 #include <geometry_msgs/Pose2D.h>
 
 #include<opencv2/core/core.hpp>
@@ -32,9 +34,14 @@ namespace orb_slam2_ros {
     ORB_SLAM2::System* mpSLAM;
 
   private:
-    ros::Publisher pub_frame_;
+    ros::NodeHandle nh_;
+    
     ros::Publisher pub_transform_;
     ros::Publisher pub_pose_;
+
+    // image transport pub/sub
+    image_transport::ImageTransport it_;
+    image_transport::Publisher pub_frame_;
 
     // Is the camera mounted backwards from the front of the car?
     bool backwards_ = false;

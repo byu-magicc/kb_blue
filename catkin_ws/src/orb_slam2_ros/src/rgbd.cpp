@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   nh_private.param<bool>("show_gui", show_gui, false);
   nh_private.param<bool>("save_map", save_map, true);
   nh_private.param<bool>("localize_only", localize_only, false);
-  
+
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
   ORB_SLAM2::System SLAM(path_vocab, path_settings, ORB_SLAM2::System::RGBD, show_gui, save_map && !localize_only);
 

@@ -3,14 +3,14 @@
 namespace orb_slam2_ros {
 
 ImageGrabber::ImageGrabber(ORB_SLAM2::System* pSLAM)
-  : mpSLAM(pSLAM)
+  : mpSLAM(pSLAM), it_(nh_)
 {
 
-  ros::NodeHandle nh;
-  pub_frame_ = nh.advertise<sensor_msgs::Image>("/orb/frame", 1);
+  // Setup an image transport publisher
+  pub_frame_ = it_.advertise("/orb/frame", 1);
 
-  pub_transform_ = nh.advertise<geometry_msgs::Transform>("/orb/transform", 1);
-  pub_pose_ = nh.advertise<geometry_msgs::Transform>("/orb/pose", 1);
+  pub_transform_ = nh_.advertise<geometry_msgs::Transform>("/orb/transform", 1);
+  pub_pose_ = nh_.advertise<geometry_msgs::Transform>("/orb/pose", 1);
 
 }
 
