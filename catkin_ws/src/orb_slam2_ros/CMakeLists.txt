@@ -16,6 +16,7 @@ endif()
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
+  cv_bridge
   image_transport
   tf
   tf_conversions
