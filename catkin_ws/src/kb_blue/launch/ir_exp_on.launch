@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <launch>
   <!-- Turn on depth auto exposure -->
   <node pkg="dynamic_reconfigure" type="dynparam" name="set_ir_autoexposure_on"

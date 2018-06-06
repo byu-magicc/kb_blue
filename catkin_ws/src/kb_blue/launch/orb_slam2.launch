@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <arg name="OS2_SRC_DIR" value="$(env HOME)/dev/kb_blue/catkin_ws/build/orb_slam2_ros/orb_slam2-download/src" />
+
+  <node pkg="orb_slam2_ros" name="orb_slam2" type="orb_slam2">
+    <param name="vocabulary" type="string" value="$(arg OS2_SRC_DIR)/Vocabulary/ORBvoc.txt" />
+    <param name="settings" type="string" value="$(find kb_blue)/param/d435.yaml" />
+    <param name="show_gui" type="bool" value="false" />
+    <param name="save_map" type="bool" value="true" />
+    <param name="localize_only" type="bool" value="false" />
+  </node>
+
+</launch>
