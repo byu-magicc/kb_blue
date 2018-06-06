@@ -2,12 +2,108 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped
+from kb_utils.msg import Command
 from nav_msgs.msg import Path
 
 from tf.transformations import euler_from_quaternion
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+class PID:
+    def __init__(self, kp, kd, ki, min, max, tau=0.05):
+        self.kp = kp
+        self.kd = kd
+        self.ki = ki
+        self.min = min
+        self.max = max
+        self.tau = tau
+
+        self.use_P = (self.kp != 0.0)
+        self.use_D = (self.kd != 0.0)
+        self.use_I = (self.ki != 0.0)
+
+        self.derivative = 0.0
+        self.integral = 0.0
+
+        self.last_error = 0.0
+
+    def run(self, error, dt, derivative=None):
+
+        # P term
+        if self.use_P:
+            p_term = self.kp * error
+        else:
+            p_term = 0.0
+
+        # D term
+        if self.use_D:
+            if not derivative is None:
+                self.derivative = derivative
+            elif dt > 0.0001:
+                self.derivative = (2.0*self.tau - dt)/(2.0*self.tau + dt)*self.derivative + 2.0/(2.0*self.tau + dt)*(error - self.error)
+            else:
+                self.derivative = 0.0
+            d_term = -self.kd * self.derivative
+        else:
+            d_term = 0.0
+
+        # I term
+        if self.use_I:
+            self.integral += error * dt
+            i_term = self.ki * self.integral
+        else:
+            i_term = 0.0
+
+        # combine
+        u = p_term + d_term + i_term
+
+        # saturate
+        if u < self.min:
+            u_sat = self.min
+        elif u > self.max:
+            u_sat = self.max
+        else:
+            u_sat = u
+
+        # integrator anti-windup
+        # if u != u_sat and self.use_I and abs(i_term) > abs(u - p_term - d_term):
+        #     self.integral = (u_sat - p_term - d_term)/self.ki
+        if self.use_I:
+            if abs(p_term + d_term) > abs(u_sat): # PD is already saturating, so set integrator to 0 but don't let it run backwards
+                self.integral = 0
+            else: # otherwise only let integral term at most take us just up to saturation
+                self.integral = (u_sat - p_term - d_term) / self.ki
+
+        # bookkeeping
+        self.last_error = error
+
+        return u_sat
+
+
+class TrajectoryController:
+    def __init__(self, follow_distance):
+        self.d = follow_distance
+        self.angle_PID = PID(0.1, 0, 0, -0.35, 0.35)
+        self.distance_PID = PID(0.5, 0, 0.05, 0.0, 3.0)
+
+    def run(self, goal, position, heading, dt):
+        distance_error = np.linalg.norm(goal - position) - self.d
+
+        desired_heading = np.atan2(goal[1] - position[1], goal[0] - position[0])
+        angle_error = desired_heading - heading
+
+        while angle_error > np.pi:
+            angle_error -= 2*np.pi
+        while angle_error < -np.pi:
+            angle_error += 2*np.pi
+
+        steering = self.angle_PID.run(angle_error, dt)
+        velocity = self.distance_PID.run(distance_error, dt)
+
+        return velocity, steering
+
 
 class Manager:
     def __init__(self):
@@ -22,7 +118,11 @@ class Manager:
         self.heading = 0.5
 
         self.nominal_delta = rospy.get_param("delta", 0.1)
-        self.lead_distance = rospy.get_param("lead", 0.5)
+        self.lead_distance = rospy.get_param("lead_distance", 0.5)
+        self.follow_distance = rospy.get_param("follow_distance", 0.4)
+
+        self.trajectory_controller = TrajectoryController(self.follow_distance)
+        self.last_controller_time = None
 
         # TEMP
         # self.waypoints = np.array([[1.0,2.0,1.0],[0.0,1.0,2.0]])
@@ -39,20 +139,33 @@ class Manager:
         self.waypoints_sub = rospy.Subscriber("path", Path, self.waypoints_callback)
 
         self.goal_pub = rospy.Publisher("goal", PoseStamped, queue_size=1)
+        self.command_pub = rospy.Publisher("command", Command, queue_size=1) # TODO this is a high-level command, not low-level
 
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
     def pose_callback(self, msg):
+        if self.last_controller_time:
+            dt = (rospy.Time.now() - self.last_controller_time).to_sec()
+        else:
+            dt = 0.0
+        self.last_controller_time = rospy.Time.now()
+
         self.position = np.array([[msg.pose.position.x], [msg.pose.position.y]])
         _, _, self.heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
 
         self.compute_goal()
+        self.run_controller(dt)
 
-        msg_out = PoseStamped()
-        msg_out.header = msg.header
-        msg_out.pose.position.x = self.goal[0]
-        msg_out.pose.position.y = self.goal[1]
-        self.goal_pub.publish(msg_out)
+        cmd_msg = Command()
+        cmd_msg.steer = self.steering
+        cmd_msg.throttle = self.velocity
+        self.command_pub.publish(cmd_msg)
+
+        goal_msg = PoseStamped()
+        goal_msg.header = msg.header
+        goal_msg.pose.position.x = self.goal[0]
+        goal_msg.pose.position.y = self.goal[1]
+        self.goal_pub.publish(goal_msg)
 
     def waypoints_callback(self, msg):
         self.waypoints = []
@@ -115,6 +228,9 @@ class Manager:
         while np.linalg.norm(self.path[self.path_index] - self.position) < self.lead_distance and self.path_index < len(self.path)-1:
             self.path_index += 1
         self.goal = self.path[self.path_index]
+
+    def run_controller(self, dt):
+        self.velocity, self.steering = self.trajectory_controller.run(self.goal, self.position, self.heading, dt)
 
 
 if __name__ == '__main__':
