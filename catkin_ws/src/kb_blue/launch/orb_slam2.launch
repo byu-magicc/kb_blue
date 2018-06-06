@@ -7,12 +7,17 @@
   <!-- Review mode: republish compressed as raw-->
   <arg name="review" default="false" />
 
+  <!-- Default SLAM options -->
+  <arg name="show_gui" default="false" />
+  <arg name="save_map" default="true" />
+  <arg name="localize_only" default="false" />
+
   <node pkg="orb_slam2_ros" name="orb_slam2" type="rgbd" output="screen">
     <param name="vocabulary" type="string" value="$(arg OS2_SRC_DIR)/Vocabulary/ORBvoc.txt" />
     <param name="settings" type="string" value="$(find kb_blue)/param/d435.yaml" />
-    <param name="show_gui" type="bool" value="false" />
-    <param name="save_map" type="bool" value="true" />
-    <param name="localize_only" type="bool" value="false" />
+    <param name="show_gui" type="bool" value="$(arg show_gui)" />
+    <param name="save_map" type="bool" value="$(arg save_map)" />
+    <param name="localize_only" type="bool" value="$(arg localize_only)" />
   </node>
 
   <group if="$(arg review)">
