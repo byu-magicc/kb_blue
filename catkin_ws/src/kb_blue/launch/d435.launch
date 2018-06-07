@@ -47,31 +47,41 @@ Processing enabled by this node:
   <arg name="serial_no"           default=""/>
   <arg name="json_file_path"      default=""/>
 
-  <arg name="fisheye_width"       default="640"/>
+  <arg name="fisheye_width"       default="848"/>
+  <!--<arg name="fisheye_width"       default="640"/>-->
   <arg name="fisheye_height"      default="480"/>
   <arg name="enable_fisheye"      default="true"/>
 
-  <arg name="depth_width"         default="640"/>
+  <arg name="depth_width"         default="848"/>
+  <!--<arg name="depth_width"         default="640"/>-->
   <arg name="depth_height"        default="480"/>
   <arg name="enable_depth"        default="true"/>
 
-  <arg name="infra1_width"        default="640"/>
+  <arg name="infra1_width"        default="848"/>
+  <!--<arg name="infra1_width"        default="640"/>-->
   <arg name="infra1_height"       default="480"/>
   <arg name="enable_infra1"       default="true"/>
 
-  <arg name="infra2_width"        default="640"/>
+  <arg name="infra2_width"        default="848"/>
+  <!--<arg name="infra2_width"        default="640"/>-->
   <arg name="infra2_height"       default="480"/>
   <arg name="enable_infra2"       default="true"/>
 
-  <arg name="color_width"         default="640"/>
+  <arg name="color_width"         default="848"/>
+  <!--<arg name="color_width"         default="640"/>-->
   <arg name="color_height"        default="480"/>
   <arg name="enable_color"        default="true"/>
 
-  <arg name="fisheye_fps"         default="30"/>
-  <arg name="depth_fps"           default="30"/>
-  <arg name="infra1_fps"          default="30"/>
-  <arg name="infra2_fps"          default="30"/>
-  <arg name="color_fps"           default="30"/>
+  <arg name="fisheye_fps"         default="60"/>
+  <arg name="depth_fps"           default="60"/>
+  <arg name="infra1_fps"          default="60"/>
+  <arg name="infra2_fps"          default="60"/>
+  <arg name="color_fps"           default="60"/>
+  <!--<arg name="fisheye_fps"         default="30"/>-->
+  <!--<arg name="depth_fps"           default="30"/>-->
+  <!--<arg name="infra1_fps"          default="30"/>-->
+  <!--<arg name="infra2_fps"          default="30"/>-->
+  <!--<arg name="color_fps"           default="30"/>-->
   <arg name="gyro_fps"            default="1000"/>
   <arg name="accel_fps"           default="1000"/>
   <arg name="enable_imu"          default="true"/>
