@@ -95,12 +95,12 @@ class PID:
 
             pdi_pre = pd_pre + i_term
 
-            if sat_min > pdi_pre:
-                i_term = sat_min - pd_pre
-                self.err_integral = i_term * ki_inv
-            elif pdi_pre > sat_max:
-                i_term = sat_max - pd_pre
-                self.err_integral = i_term * ki_inv
+            if self.sat_min > pdi_pre:
+                i_term = self.sat_min - pd_pre
+                self.err_integral = i_term * self.ki_inv
+            elif pdi_pre > self.sat_max:
+                i_term = self.sat_max - pd_pre
+                self.err_integral = i_term * self.ki_inv
             #
         else:
             self.err_integral = 0.0
@@ -147,10 +147,11 @@ class LowLevelControl:
         vel_sat_min = -0.5
         vel_sat_max = 0.5
 
-        vel_alpha = 0.75
+        self.vel_alpha = 0.75
+        self.vel_alpha_sf1 = 1.0 - self.vel_alpha
         vel_tau = 0.05
 
-        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_alpha, vel_tau )
+        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, self.vel_alpha, vel_tau )
 
         st_kp = 1.0
         st_kd = 1.0
@@ -159,10 +160,11 @@ class LowLevelControl:
         st_sat_min = -0.5
         st_sat_max = 0.5
 
-        st_alpha = 0.01
+        self.st_alpha = 0.01
+        self.st_alpha_sf1 = 1.0 - self.st_alpha
         st_tau = 0.05
 
-        self.steer_ctl = PID( st_kp, st_kd, st_ki, st_sat_min, st_sat_max, st_alpha, st_tau )
+        self.steer_ctl = PID( st_kp, st_kd, st_ki, st_sat_min, st_sat_max, self.st_alpha, st_tau )
 
 
         # ======================================
@@ -194,16 +196,16 @@ class LowLevelControl:
         half_dt = 0.5 * dt
 
         self.vel_prev = self.vel_cur
-        self.vel_cur = msg.velocity
+        self.vel_cur = msg.vel
 
         # add a low pass filter here, as we read the value, instead of in PID?
-        self.vel_cur = self.al_vel * self.vel_cur + self.al_vel_sf1 * self.vel_prev
+        self.vel_cur = self.vel_alpha * self.vel_cur + self.vel_alpha_sf1 * self.vel_prev
 
 
         omega_cur_average = np.mean( self.omega_cur_buffer )
 
         if abs(self.vel_cur) > 0.2:
-            self.steer_cur = self.al_steer * self.steer_prev + self.al_steer_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
+            self.steer_cur = self.st_alpha * self.steer_prev + self.st_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
             self.steer_prev = self.steer_cur
 
         vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur )
@@ -214,7 +216,7 @@ class LowLevelControl:
 
         steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
 
-        self.command_pub( throttle=vel_cmd_out, steer=steer_cmd_out )
+        self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
 
         #
     #
@@ -242,27 +244,9 @@ class LowLevelControl:
 # ======================================
 # ======================================
 
-if __name__ == 'main':
-    rospy.init_node("lowlevel_control_oo", anonymous=False)
+if __name__ == '__main__':
+    rospy.init_node("lowlevel_control_oo")
     control = LowLevelControl()
     rospy.spin()
     #
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #
