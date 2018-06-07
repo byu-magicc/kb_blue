@@ -14,7 +14,7 @@ import numpy as np
 # ======================================
 
 class PID:
-    def __init__( self, kp, kd, ki, sat_min, sat_max, alpha, tau=0.05 ):
+    def __init__( self, kp, kd, ki, sat_min, sat_max, tau=0.05 ):
         # gains
         self.kp = kp
         self.kd = kd
@@ -23,7 +23,6 @@ class PID:
         self.sat_min = sat_min
         self.sat_max = sat_max
         # low pass filter strength and derivative bandwidth limiting factor
-        self.alpha = alpha
         self.tau = tau
 
         self.use_P = (self.kp != 0.0)
@@ -34,15 +33,13 @@ class PID:
         if self.use_I:
             self.ki_inv = 1 / self.ki
         #
-        # pre-compute ( 1 - alpha ) for less computation in function
-        # alpha subtracted from 1
-        self.alpha_sf1 = 1.0 - self.alpha
+        # pre-compute for less computation in function
         self.tau2x = 2.0 * self.tau
 
 
         # 'static' of derivative for time=t-1
         self.err_derivative = 0.0
-        self.err_derivative_prev = 0.0
+        # self.err_derivative_prev = 0.0
         self.err_integral = 0.0
         # self.integral_prev = 0.0
 
@@ -67,12 +64,12 @@ class PID:
         # derivative term
         if self.use_D:
             if not derivative is None:
-                self.derivative = derivative
+                self.err_derivative = derivative
             elif dt > 0.0001:
                 self.err_derivative = ( self.tau2x - dt ) / ( self.tau2x + dt ) * self.err_derivative + 2.0 / ( self.tau2x + dt ) * ( self.err - self.err_prev )
             else:
-                self.derivative = 0.0
-            d_term = -self.kd * self.derivative
+                self.err_derivative = 0.0
+            d_term = -self.kd * self.err_derivative
         else:
             d_term = 0.0
         #
@@ -110,7 +107,6 @@ class PID:
 
         return pid_out
 
-        #
     #
 #
 
@@ -124,17 +120,22 @@ class LowLevelControl:
         self.vel_cur = 0.0
         self.vel_prev = 0.0
 
-        self.omega_cur = 0.0
-        self.omega_prev = 0.0
+        # self.omega_cur = 0.0
+        # self.omega_prev = 0.0
 
         self.vel_des_cur = 0.0
         self.vel_des_prev = 0.0
 
+        self.steer_cur = 0.0
+        self.steer_prev = 0.0
+
         self.steer_des_cur = 0.0
         self.steer_des_prev = 0.0
 
-        self.steer_cur = 0.0
-        self.steer_prev = 0.0
+        # raw values that are read from subscriber, to be filtered
+        self.vel_raw = 0.0
+        self.omega_raw = 0.0
+        self.omega_raw_buffer = 0.0
 
         # self.pid_timer_dt = 0.1
 
@@ -151,20 +152,20 @@ class LowLevelControl:
         self.vel_alpha_sf1 = 1.0 - self.vel_alpha
         vel_tau = 0.05
 
-        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, self.vel_alpha, vel_tau )
+        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_tau )
 
-        st_kp = 1.0
-        st_kd = 1.0
-        st_ki = 1.0
+        steer_kp = 1.0
+        steer_kd = 1.0
+        steer_ki = 1.0
 
-        st_sat_min = -0.5
-        st_sat_max = 0.5
+        steer_sat_min = -0.5
+        steer_sat_max = 0.5
 
-        self.st_alpha = 0.01
-        self.st_alpha_sf1 = 1.0 - self.st_alpha
-        st_tau = 0.05
+        self.steer_alpha = 0.01
+        self.steer_alpha_sf1 = 1.0 - self.steer_alpha
+        steer_tau = 0.05
 
-        self.steer_ctl = PID( st_kp, st_kd, st_ki, st_sat_min, st_sat_max, self.st_alpha, st_tau )
+        self.steer_ctl = PID( steer_kp, steer_kd, steer_ki, steer_sat_min, steer_sat_max, steer_tau )
 
 
         # ======================================
@@ -190,44 +191,43 @@ class LowLevelControl:
 
         # compute dt and half_dt for compute_pid
         if not self.time_prev is None:
-            dt = ( rospy.Time.now() - self.time_prev ).to_sec()
+            t_cur = rospy.Time.now().to_sec()
+            dt = ( t_cur - self.time_prev )
+            self.time_prev = t_cur
         else:
             dt = 0.0
+            self.time_prev = rospy.Time.now().to_sec()
         half_dt = 0.5 * dt
 
+        # update current velocity measurement with low pass filter
         self.vel_prev = self.vel_cur
-        self.vel_cur = msg.vel
-
-        # add a low pass filter here, as we read the value, instead of in PID?
-        self.vel_cur = self.vel_alpha * self.vel_cur + self.vel_alpha_sf1 * self.vel_prev
+        self.vel_raw = msg.vel
+        self.vel_cur = self.vel_alpha * self.vel_raw + self.vel_alpha_sf1 * self.vel_prev
 
 
-        omega_cur_average = np.mean( self.omega_cur_buffer )
+        omega_cur_average = np.mean( self.omega_raw_buffer )
 
         if abs(self.vel_cur) > 0.2:
-            self.steer_cur = self.st_alpha * self.steer_prev + self.st_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
+            self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
             self.steer_prev = self.steer_cur
-
-        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur )
+        #
 
         # ======================================
 
-        # steering control
+        # compute control laws
+        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur )
 
         steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
 
-        #
     #
     def getOmega( self, msg ):
-        # self.steer_prev = self.steer_cur
-        # self.steer_cur = msg.steer
 
-        self.omega_prev = self.omega_cur
-        self.omega_cur = msg.angular_velocity.z
+        # self.omega_prev = self.omega_cur
+        self.omega_raw = msg.angular_velocity.z
 
-        self.omega_cur_buffer.append( self.omega_cur )
+        self.omega_raw_buffer.append( self.omega_raw )
 
     #
 
@@ -235,9 +235,7 @@ class LowLevelControl:
         self.vel_des_cur = msg.velocity
         self.steer_des_cur = msg.steering
 
-
-
-
+    #
 #
 
 
@@ -248,5 +246,6 @@ if __name__ == '__main__':
     rospy.init_node("lowlevel_control_oo")
     control = LowLevelControl()
     rospy.spin()
+
     #
 #
