@@ -7,3 +7,7 @@
 [submodule "catkin_ws/src/timed_roslaunch"]
 	path = catkin_ws/src/timed_roslaunch
 	url = https://github.com/MoriKen254/timed_roslaunch.git
+[submodule "catkin_ws/src/inertial_sense_ros"]
+	path = catkin_ws/src/inertial_sense_ros
+	url = https://github.com/inertialsense/inertial_sense_ros.git
+	branch = release
