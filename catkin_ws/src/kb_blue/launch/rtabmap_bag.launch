@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <launch>
   <!-- Convenience launch file to launch odometry, rtabmap and rtabmapviz nodes at once -->
 
@@ -42,7 +41,7 @@
   <arg name="database_path"           default="~/.ros/rtabmap.db"/>
   <arg name="queue_size"              default="10"/>
   <arg name="wait_for_transform"      default="0.2"/>
-  <arg name="args"                    default="--delete_db_on_start"/>   <!-- delete_db_on_start, udebug -->
+  <arg name="args"                    default=""/>   <!-- delete_db_on_start, udebug -->
   <arg name="rtabmap_args"            default="$(arg args)"/>   <!-- deprecated, use "args" argument -->
   <arg name="launch_prefix"           default=""/>              <!-- for debugging purpose, it fills launch-prefix tag of the nodes -->
   <arg name="output"                  default="screen"/>        <!-- Control node output (screen or log) -->
@@ -80,7 +79,7 @@
 
   <arg name="compressed"              default="true"/>         <!-- If you want to subscribe to compressed image topics -->
   <arg name="rgb_image_transport"     default="compressed"/>    <!-- Common types: compressed, theora (see "rosrun image_transport list_transports") -->
-  <arg name="depth_image_transport"   default="compressedDepth"/>  <!-- Common types: compressed, theora (see "rosrun image_transport list_transports") -->
+  <arg name="depth_image_transport"   default="raw"/>  <!-- Common types: compressed, theora (see "rosrun image_transport list_transports") -->
 
   <arg name="subscribe_scan"          default="false"/>
   <arg name="scan_topic"              default="/scan"/>
@@ -182,6 +181,11 @@
           <param name="guess_frame_id"              type="string" value="$(arg odom_guess_frame_id)"/>
           <param name="guess_min_translation"       type="double" value="$(arg odom_guess_min_translation)"/>
           <param name="guess_min_rotation"          type="double" value="$(arg odom_guess_min_rotation)"/>
+          <param name="publish_null_when_lost"      type="bool"   value="false"/>
+          <param name="Odom/ResetCountdown"         type="double" value="1"/>
+
+          <!--Michael Added this -->
+          <!--<param name="Reg/Force3DoF"    type="bool" value="true" />-->
         </node>
 
         <!-- Stereo Odometry -->
@@ -230,6 +234,8 @@
     <!-- Visual SLAM (robot side) -->
     <!-- args: "delete_db_on_start" and "udebug" -->
     <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="$(arg output)" args="$(arg rtabmap_args)" launch-prefix="$(arg launch_prefix)">
+      
+      <param name="Rtabmap/StartNewMapOnLoopClosure" type="bool" value="false"/>
       <param     if="$(arg stereo)" name="subscribe_depth"  type="bool" value="false"/>
       <param unless="$(arg stereo)" name="subscribe_depth"  type="bool" value="true"/>
       <param name="subscribe_rgbd"       type="bool"   value="$(arg subscribe_rgbd)"/>
@@ -275,6 +281,39 @@
 	  <param     if="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="false"/>
 	  <param unless="$(arg localization)" name="Mem/IncrementalMemory" type="string" value="true"/>
 	  <param name="Mem/InitWMWithAllNodes" type="string" value="$(arg localization)"/>
+
+    <!--Michael added these-->
+    <!--<param name="RGBD/NeighborLinkRefining"  type="string" value="false"/> -->
+    <!--<param name="RGBD/ProximityBySpace"      type="string" value="false"/> -->
+    <!--[>[> Referred paper did only global loop closure detection <]<]-->
+    <!--<param name="RGBD/ProximityByTime"       type="string" value="false"/> -->
+    <!--<param name="RGBD/OptimizeFromGraphEnd"  type="string" value="true"/> -->
+    <!--<param name="Reg/Strategy"               type="string" value="1"/>-->
+    <!--[><param name="Icp/Iterations"             type="string" value="30"/><]-->
+    <!--[><param name="Icp/VoxelSize"              type="string" value="0"/><]-->
+    <!--<param name="Vis/MinInliers"             type="string" value="5"/>-->
+    <!--<param name="Vis/MaxDepth"               type="string" value="4.0"/>-->
+    <!--<param name="RGBD/AngularUpdate"         type="string" value="0.01"/>-->
+    <!--<param name="RGBD/LinearUpdate"          type="string" value="0.01"/>-->
+    <!--<param name="Rtabmap/TimeThr"            type="string" value="700"/>-->
+    <!--<param name="Mem/RehearsalSimilarity"    type="string" value="0.45"/>-->
+    <!--<param name="Kp/TfIdfLikelihoodUsed"     type="string" value="false"/>-->
+    <!--<param name="Bayes/FullPredictionUpdate" type="string" value="true"/>-->
+    <!--[>Use surf<]-->
+    <param name="Kp/DetectorStrategy"        type="string" value="0"/>
+    <param name="Kp/MaxFeatures"             type="string" value="400"/>
+    <!--<param name="Reg/Force3DoF"              type="string" value="true"/> -->
+    <!--<param name="RGBD/OptimizeMaxError"      type="string" value="0.25"/>-->
+    <!--<param name="Optimizer/Strategy"         type="string" value="0"/>-->
+    <!--[>[> TORO is the most stable for multi-session mapping <]<]-->
+    <!--<param name="Optimizer/Iterations"       type="string" value="100"/> -->
+    <!--<param name="Kp/IncrementalFlann"        type="string" value="false"/>-->
+    <!--[>[> Referred paper didn't use incremental FLANN <]<]-->
+    <!--<param name="Grid/FromDepth"             type="string" value="false"/>-->
+
+        <param name="Reg/Force3DoF"    type="bool" value="true" />
+        <param name="Optimizer/Slam2D" type="bool" value="true" />
+
     </node>
 
     <!-- Visualisation RTAB-Map -->
