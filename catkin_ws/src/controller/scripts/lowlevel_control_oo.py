@@ -3,8 +3,8 @@
 import rospy
 from sensor_msgs.msg import Imu
 from controller.msg import Drive
+from std_msgs.msg import Bool
 from kb_utils.msg import Command, Encoder
-from std_msgs.msg import Float64
 
 from collections import deque
 
@@ -15,7 +15,7 @@ import numpy as np
 # ======================================
 
 class PID:
-    def __init__( self, kp, kd, ki, sat_min, sat_max, tau=0.05 ):
+    def __init__( self, kp, kd, ki, sat_min, sat_max, alpha, tau=0.05 ):
         # gains
         self.kp = kp
         self.kd = kd
@@ -24,6 +24,7 @@ class PID:
         self.sat_min = sat_min
         self.sat_max = sat_max
         # low pass filter strength and derivative bandwidth limiting factor
+        self.alpha = alpha
         self.tau = tau
 
         self.use_P = (self.kp != 0.0)
@@ -34,13 +35,15 @@ class PID:
         if self.use_I:
             self.ki_inv = 1 / self.ki
         #
-        # pre-compute for less computation in function
+        # pre-compute ( 1 - alpha ) for less computation in function
+        # alpha subtracted from 1
+        self.alpha_sf1 = 1.0 - self.alpha
         self.tau2x = 2.0 * self.tau
 
 
         # 'static' of derivative for time=t-1
         self.err_derivative = 0.0
-        # self.err_derivative_prev = 0.0
+        self.err_derivative_prev = 0.0
         self.err_integral = 0.0
         # self.integral_prev = 0.0
 
@@ -50,11 +53,11 @@ class PID:
         self.err_prev = 0.0
     #
 
-    def compute_pid( self, dt, half_dt, val_cur, val_des_cur, derivative=None ):
+    def compute_pid( self, dt, half_dt, val_cur, val_des_cur, override_active, derivative=None ):
 
         # compute error
         self.err_prev = self.err
-        self.err = val_des_cur - val_cur
+        self.err = val_cur - val_des_cur
 
         # proportional term
         if self.use_P:
@@ -65,12 +68,12 @@ class PID:
         # derivative term
         if self.use_D:
             if not derivative is None:
-                self.err_derivative = derivative
+                self.derivative = derivative
             elif dt > 0.0001:
                 self.err_derivative = ( self.tau2x - dt ) / ( self.tau2x + dt ) * self.err_derivative + 2.0 / ( self.tau2x + dt ) * ( self.err - self.err_prev )
             else:
-                self.err_derivative = 0.0
-            d_term = -self.kd * self.err_derivative
+                self.derivative = 0.0
+            d_term = -self.kd * self.derivative
         else:
             d_term = 0.0
         #
@@ -86,7 +89,7 @@ class PID:
         # integral term
         i_term = 0.0
 
-        if self.sat_min < pd_pre < self.sat_max:
+        if self.sat_min < pd_pre < self.sat_max and not override_active:
             self.err_integral = self.err_integral + half_dt * ( self.err + self.err_prev )
 
             i_term = self.ki * self.err_integral
@@ -108,6 +111,7 @@ class PID:
 
         return pid_out
 
+        #
     #
 #
 
@@ -121,35 +125,26 @@ class LowLevelControl:
         self.vel_cur = 0.0
         self.vel_prev = 0.0
 
-        self.vel_des_filtered = 0.0
-        self.vel_filter_tau = 0.5
-
-        # self.omega_cur = 0.0
-        # self.omega_prev = 0.0
+        self.omega_cur = 0.0
+        self.omega_prev = 0.0
 
         self.vel_des_cur = 0.0
         self.vel_des_prev = 0.0
 
-        self.steer_cur = 0.0
-        self.steer_prev = 0.0
-
         self.steer_des_cur = 0.0
         self.steer_des_prev = 0.0
 
-        # raw values that are read from subscriber, to be filtered
-        self.vel_raw = 0.0
-        self.omega_raw = 0.0
-        self.omega_raw_buffer = deque( maxlen=20 )
+        self.steer_cur = 0.0
+        self.steer_prev = 0.0
 
         # self.pid_timer_dt = 0.1
-
-        self.whl_base = 0.18
+        self.override_active = True
 
         # ======================================
         # create instance of pid class
-        vel_kp = 0.2
-        vel_kd = 0.0
-        vel_ki = 0.1
+        vel_kp = 1.0
+        vel_kd = 1.0
+        vel_ki = 1.0
 
         vel_sat_min = -0.5
         vel_sat_max = 0.5
@@ -158,25 +153,27 @@ class LowLevelControl:
         self.vel_alpha_sf1 = 1.0 - self.vel_alpha
         vel_tau = 0.05
 
-        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_tau )
+        self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, self.vel_alpha, vel_tau )
 
-        steer_kp = 0.0
-        steer_kd = 0.0
-        steer_ki = 0.0
+        st_kp = 1.0
+        st_kd = 1.0
+        st_ki = 1.0
 
-        steer_sat_min = -0.5
-        steer_sat_max = 0.5
+        st_sat_min = -0.5
+        st_sat_max = 0.5
 
-        self.steer_alpha = 0.01
-        self.steer_alpha_sf1 = 1.0 - self.steer_alpha
-        steer_tau = 0.05
+        self.st_alpha = 0.01
+        self.st_alpha_sf1 = 1.0 - self.st_alpha
+        st_tau = 0.05
 
-        self.steer_ctl = PID( steer_kp, steer_kd, steer_ki, steer_sat_min, steer_sat_max, steer_tau )
+        self.steer_ctl = PID( st_kp, st_kd, st_ki, st_sat_min, st_sat_max, self.st_alpha, st_tau )
 
 
         # ======================================
 
         self.time_prev = None
+
+        self.omega_cur_buffer = deque( maxlen=20 )
 
         # subscribers
         # -- current frame omega
@@ -185,16 +182,11 @@ class LowLevelControl:
         self.encoder_sub = rospy.Subscriber( "encoder", Encoder, self.getVel )
         # -- current desired velocity and steering
         self.drive_sub = rospy.Subscriber( "drive", Drive, self.getDesired )
+        # -- safety pilot over ride boolean flag __'topic', mesage type, callback name__
+        self.safe_override_sub = rospy.Subscriber( "safety_pilot_override", Bool, self.getSafe )
 
         # publisher, vel_com(mand), steer_com(mand)
         self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
-
-        # debug publishers
-        self.vel_filtered_pub = rospy.Publisher( "debug/vel_filtered", Float64, queue_size=1 )
-        self.vel_des_filtered_pub = rospy.Publisher( "debug/vel_des_filtered", Float64, queue_size=1 )
-        self.steering_angle_pub = rospy.Publisher( "debug/steering_angle", Float64, queue_size=1 )
-
-
 
     #
 
@@ -202,58 +194,58 @@ class LowLevelControl:
 
         # compute dt and half_dt for compute_pid
         if not self.time_prev is None:
-            t_cur = rospy.Time.now().to_sec()
-            dt = ( t_cur - self.time_prev )
-            self.time_prev = t_cur
+            dt = ( rospy.Time.now() - self.time_prev ).to_sec()
         else:
             dt = 0.0
-            self.time_prev = rospy.Time.now().to_sec()
         half_dt = 0.5 * dt
 
-        # update current velocity measurement with low pass filter
         self.vel_prev = self.vel_cur
-        self.vel_raw = msg.vel
-        self.vel_cur = self.vel_alpha * self.vel_raw + self.vel_alpha_sf1 * self.vel_prev
+        self.vel_cur = msg.vel
 
-        # input shaping for velocity command
-        self.vel_des_filtered += 1.0/self.vel_filter_tau * (self.vel_des_cur - self.vel_des_filtered) * dt
+        # add a low pass filter here, as we read the value, instead of in PID?
+        self.vel_cur = self.vel_alpha * self.vel_cur + self.vel_alpha_sf1 * self.vel_prev
 
 
-        omega_cur_average = np.mean( self.omega_raw_buffer )
+        omega_cur_average = np.mean( self.omega_cur_buffer )
 
         if abs(self.vel_cur) > 0.2:
-            self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
+            self.steer_cur = self.st_alpha * self.steer_prev + self.st_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
             self.steer_prev = self.steer_cur
-        #
+
+        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur, self.override_active )
 
         # ======================================
 
-        # compute control laws
-        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered )
+        # steering control
 
-        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
+        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
-        self.vel_filtered_pub.publish( self.vel_cur )
-        self.vel_des_filtered_pub.publish( self.vel_des_filtered )
-        self.steering_angle_pub.publish( self.steer_cur )
 
+        #
     #
     def getOmega( self, msg ):
+        # self.steer_prev = self.steer_cur
+        # self.steer_cur = msg.steer
 
-        # self.omega_prev = self.omega_cur
-        self.omega_raw = msg.angular_velocity.z
+        self.omega_prev = self.omega_cur
+        self.omega_cur = msg.angular_velocity.z
 
-        self.omega_raw_buffer.append( self.omega_raw )
+        self.omega_cur_buffer.append( self.omega_cur )
 
     #
 
     def getDesired( self, msg ):
         self.vel_des_cur = msg.velocity
         self.steer_des_cur = msg.steering
-
-
     #
+
+    def getSafe( self, msg ):
+        self.override_active = msg.data
+    #
+
+
+
 #
 
 
@@ -264,6 +256,5 @@ if __name__ == '__main__':
     rospy.init_node("lowlevel_control_oo")
     control = LowLevelControl()
     rospy.spin()
-
     #
 #
