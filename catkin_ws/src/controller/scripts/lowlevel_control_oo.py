@@ -4,6 +4,7 @@ import rospy
 from sensor_msgs.msg import Imu
 from controller.msg import Drive
 from kb_utils.msg import Command, Encoder
+from std_msgs.msg import Float64
 
 from collections import deque
 
@@ -53,7 +54,7 @@ class PID:
 
         # compute error
         self.err_prev = self.err
-        self.err = val_cur - val_des_cur
+        self.err = val_des_cur - val_cur
 
         # proportional term
         if self.use_P:
@@ -120,6 +121,9 @@ class LowLevelControl:
         self.vel_cur = 0.0
         self.vel_prev = 0.0
 
+        self.vel_des_filtered = 0.0
+        self.vel_filter_tau = 0.5
+
         # self.omega_cur = 0.0
         # self.omega_prev = 0.0
 
@@ -135,15 +139,17 @@ class LowLevelControl:
         # raw values that are read from subscriber, to be filtered
         self.vel_raw = 0.0
         self.omega_raw = 0.0
-        self.omega_raw_buffer = 0.0
+        self.omega_raw_buffer = deque( maxlen=20 )
 
         # self.pid_timer_dt = 0.1
 
+        self.whl_base = 0.18
+
         # ======================================
         # create instance of pid class
-        vel_kp = 1.0
-        vel_kd = 1.0
-        vel_ki = 1.0
+        vel_kp = 0.2
+        vel_kd = 0.0
+        vel_ki = 0.1
 
         vel_sat_min = -0.5
         vel_sat_max = 0.5
@@ -154,9 +160,9 @@ class LowLevelControl:
 
         self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_tau )
 
-        steer_kp = 1.0
-        steer_kd = 1.0
-        steer_ki = 1.0
+        steer_kp = 0.0
+        steer_kd = 0.0
+        steer_ki = 0.0
 
         steer_sat_min = -0.5
         steer_sat_max = 0.5
@@ -172,8 +178,6 @@ class LowLevelControl:
 
         self.time_prev = None
 
-        self.omega_cur_buffer = deque( maxlen=20 )
-
         # subscribers
         # -- current frame omega
         self.imu_sub = rospy.Subscriber( "imu/data", Imu, self.getOmega )
@@ -184,6 +188,13 @@ class LowLevelControl:
 
         # publisher, vel_com(mand), steer_com(mand)
         self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
+
+        # debug publishers
+        self.vel_filtered_pub = rospy.Publisher( "debug/vel_filtered", Float64, queue_size=1 )
+        self.vel_des_filtered_pub = rospy.Publisher( "debug/vel_des_filtered", Float64, queue_size=1 )
+        self.steering_angle_pub = rospy.Publisher( "debug/steering_angle", Float64, queue_size=1 )
+
+
 
     #
 
@@ -204,6 +215,9 @@ class LowLevelControl:
         self.vel_raw = msg.vel
         self.vel_cur = self.vel_alpha * self.vel_raw + self.vel_alpha_sf1 * self.vel_prev
 
+        # input shaping for velocity command
+        self.vel_des_filtered += 1.0/self.vel_filter_tau * (self.vel_des_cur - self.vel_des_filtered) * dt
+
 
         omega_cur_average = np.mean( self.omega_raw_buffer )
 
@@ -215,11 +229,14 @@ class LowLevelControl:
         # ======================================
 
         # compute control laws
-        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_cur )
+        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered )
 
         steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
+        self.vel_filtered_pub.publish( self.vel_cur )
+        self.vel_des_filtered_pub.publish( self.vel_des_filtered )
+        self.steering_angle_pub.publish( self.steer_cur )
 
     #
     def getOmega( self, msg ):
@@ -234,6 +251,7 @@ class LowLevelControl:
     def getDesired( self, msg ):
         self.vel_des_cur = msg.velocity
         self.steer_des_cur = msg.steering
+
 
     #
 #
