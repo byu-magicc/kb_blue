@@ -3,6 +3,7 @@
 import rospy
 from sensor_msgs.msg import Imu
 from controller.msg import Drive
+from std_msgs.msg import Bool
 from kb_utils.msg import Command, Encoder
 from std_msgs.msg import Float64
 
@@ -50,7 +51,7 @@ class PID:
         self.err_prev = 0.0
     #
 
-    def compute_pid( self, dt, half_dt, val_cur, val_des_cur, derivative=None ):
+    def compute_pid( self, dt, half_dt, val_cur, val_des_cur, override_active, derivative=None ):
 
         # compute error
         self.err_prev = self.err
@@ -86,7 +87,7 @@ class PID:
         # integral term
         i_term = 0.0
 
-        if self.sat_min < pd_pre < self.sat_max:
+        if self.sat_min < pd_pre < self.sat_max and not override_active:
             self.err_integral = self.err_integral + half_dt * ( self.err + self.err_prev )
 
             i_term = self.ki * self.err_integral
@@ -142,6 +143,7 @@ class LowLevelControl:
         self.omega_raw_buffer = deque( maxlen=20 )
 
         # self.pid_timer_dt = 0.1
+        self.override_active = True
 
         self.whl_base = 0.18
 
@@ -185,6 +187,8 @@ class LowLevelControl:
         self.encoder_sub = rospy.Subscriber( "encoder", Encoder, self.getVel )
         # -- current desired velocity and steering
         self.drive_sub = rospy.Subscriber( "drive", Drive, self.getDesired )
+        # -- safety pilot over ride boolean flag __'topic', mesage type, callback name__
+        self.safe_override_sub = rospy.Subscriber( "safety_pilot_override", Bool, self.getSafe )
 
         # publisher, vel_com(mand), steer_com(mand)
         self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
@@ -229,9 +233,9 @@ class LowLevelControl:
         # ======================================
 
         # compute control laws
-        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered )
+        vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered, self.override_active )
 
-        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur )
+        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
         self.vel_filtered_pub.publish( self.vel_cur )
@@ -251,7 +255,11 @@ class LowLevelControl:
     def getDesired( self, msg ):
         self.vel_des_cur = msg.velocity
         self.steer_des_cur = msg.steering
+    #
 
+    def getSafe( self, msg ):
+        self.override_active = msg.data
+    #
 
     #
 #
