@@ -19,7 +19,6 @@ mission:
     - [7.0, 6.0]
     - [10.0, 1.0]
     - [12.0, 1.0]
-    - [13.0, 3.5]
   waypoints_back:
     - [12.0, 6.0]
     - [7.0, 6.0]
@@ -27,9 +26,9 @@ mission:
     - [3.0, 7.0]
     - [0.0, 5.0]
     - [0.0, 0.0]
+  pucker_pose: [13.0, 3.5, 0.0]
   landmarks:
     home: [0.0, 0.0]
     brigham: [15.0, 3.5]
   endgame:
-    heading: 0.0
     radius: 3.0

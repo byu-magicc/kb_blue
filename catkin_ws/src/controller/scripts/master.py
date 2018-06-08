@@ -47,7 +47,7 @@ class Master:
         self.waypoints_back = rospy.get_param("mission/waypoints_back")
         self.landmark_home = rospy.get_param("mission/landmarks/home")
         self.landmark_brigham = rospy.get_param("mission/landmarks/brigham")
-        self.final_heading = rospy.get_param("mission/endgame/heading")
+        self.pucker_pose = rospy.get_param("mission/pucker_pose")
         self.final_position_radius = rospy.get_param("mission/endgame/radius")
 
         # plotting stuff
@@ -60,6 +60,7 @@ class Master:
         # instantiate controllers
         self.waypoint_follower = WaypointFollower(self.nominal_delta, self.lead_distance, self.follow_distance)
         self.pose_controller = PoseController()
+        self.kiss_controller = None
 
         # ROS pub/sub
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
@@ -101,7 +102,8 @@ class Master:
         velocity, steering = (0, 0)
 
         if self.state == Master.STATE_WAITING_FOR_POSE:
-            self.waypoint_follower.set_waypoints(self.waypoints_there, position)
+            waypoint_list = self.waypoints_there + [self.pucker_pose[:2]]
+            self.waypoint_follower.set_waypoints(waypoint_list, position)
 
             self.state = Master.STATE_WAYPOINTS_THERE
             rospy.loginfo("Setting state to: WAYPOINTS_THERE")
@@ -109,17 +111,14 @@ class Master:
         elif self.state == Master.STATE_WAYPOINTS_THERE:
             velocity, steering = self.waypoint_follower.update(position, heading, dt)
 
-            if np.linalg.norm(position - self.landmark_brigham) < self.final_position_radius:
+            if np.linalg.norm(position - self.pucker_pose[:2]) < self.final_position_radius:
                 self.state = Master.STATE_LINE_UP_THERE
                 rospy.loginfo("Setting state to: LINE_UP_THERE")
 
         elif self.state == Master.STATE_LINE_UP_THERE:
-            final_wp = self.waypoints_there[-1]
-            goal = np.append(final_wp, [self.final_heading])
+            velocity, steering = self.pose_controller.run(self.pucker_pose, position, heading, dt)
 
-            velocity, steering = self.pose_controller.run(goal, position, heading, dt)
-
-            if np.linalg.norm(position - final_wp) < self.pose_close:
+            if np.linalg.norm(position - self.pucker_pose[:2]) < self.pose_close:
                 self.state = Master.STATE_KISS_BRIGHAM_THERE
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
@@ -177,7 +176,7 @@ class Master:
             self.ax.plot(self.goal[0], self.goal[1], 'go')
 
         self.ax.plot(self.landmark_brigham[0], self.landmark_brigham[1], 'r*')
-        self.ax.plot(self.circle_x + self.landmark_brigham[0], self.circle_y + self.landmark_brigham[1], 'r--')
+        self.ax.plot(self.circle_x + self.pucker_pose[0], self.circle_y + self.pucker_pose[1], 'r--')
 
         R = np.array([[np.cos(self.heading), np.sin(self.heading)],[-np.sin(self.heading), np.cos(self.heading)]]).T
         vehicle = R.dot(self.vehicle_marker) + np.atleast_2d(self.position).T
