@@ -125,8 +125,9 @@ class Manager:
         self.last_controller_time = None
 
         # TEMP
-        self.waypoints = [ np.array([[1.0],[0.0]]), np.array([[2.0],[1.0]]), np.array([[1.0],[2.0]]) ]
+        #self.waypoints = [ np.array([[1.0],[0.0]]), np.array([[2.0],[1.0]]), np.array([[1.0],[2.0]]) ]
         # self.waypoints = [ np.array([[10.0],[0.0]]), np.array([[20.0],[10.0]]), np.array([[10.0],[20.0]]) ]
+        self.waypoints = [ np.array([[-1.0],[-0.6]]), np.array([[0.5],[0.5]]), np.array([[2.25],[0.5]]) ]
         self.generate_path()
         self.have_waypoints = True
         # end TEMP
@@ -143,6 +144,8 @@ class Manager:
 
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
+        self.initialized = False
+
     def pose_callback(self, msg):
         if self.last_controller_time:
             dt = (rospy.Time.now() - self.last_controller_time).to_sec()
@@ -154,6 +157,10 @@ class Manager:
         # _, _, self.heading = euler_from_quaternion([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
         self.position = np.array([[msg.x], [msg.y]])
         self.heading = msg.theta
+
+        if not self.initialized:
+            self.generate_path()
+            self.initialized = True
 
         self.compute_goal()
         self.run_controller(dt)
