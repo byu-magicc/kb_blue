@@ -40,18 +40,23 @@ class PID:
 
 
         # 'static' of derivative for time=t-1
-        self.err_derivative = 0.0
-        # self.err_derivative_prev = 0.0
+        self.derivative = 0.0
+        # self.derivative_prev = 0.0
         self.err_integral = 0.0
         # self.integral_prev = 0.0
 
         # 'static' error of time=t-1
         # assign these in the subscriber
+        self.val = 0.0
+        self.val_prev = 0.0
         self.err = 0.0
         self.err_prev = 0.0
     #
 
     def compute_pid( self, dt, half_dt, val_cur, val_des_cur, override_active, derivative=None ):
+
+        self.val_prev = self.val
+        self.val = val_cur
 
         # compute error
         self.err_prev = self.err
@@ -66,12 +71,12 @@ class PID:
         # derivative term
         if self.use_D:
             if not derivative is None:
-                self.err_derivative = derivative
+                self.derivative = derivative
             elif dt > 0.0001:
-                self.err_derivative = ( self.tau2x - dt ) / ( self.tau2x + dt ) * self.err_derivative + 2.0 / ( self.tau2x + dt ) * ( self.err - self.err_prev )
+                self.derivative = ( self.tau2x - dt ) / ( self.tau2x + dt ) * self.derivative + 2.0 / ( self.tau2x + dt ) * ( self.val - self.val_prev )
             else:
-                self.err_derivative = 0.0
-            d_term = -self.kd * self.err_derivative
+                self.derivative = 0.0
+            d_term = -self.kd * self.derivative
         else:
             d_term = 0.0
         #
@@ -122,7 +127,7 @@ class LowLevelControl:
         self.vel_prev = 0.0
 
         self.vel_des_filtered = 0.0
-        self.vel_filter_tau = 0.5
+        self.vel_filter_tau = 0.2
 
         # self.omega_cur = 0.0
         # self.omega_prev = 0.0
@@ -148,9 +153,9 @@ class LowLevelControl:
 
         # ======================================
         # create instance of pid class
-        vel_kp = 0.2
+        vel_kp = 0.45
         vel_kd = 0.0
-        vel_ki = 0.1
+        vel_ki = 0.6
 
         vel_sat_min = -0.5
         vel_sat_max = 0.5
@@ -161,9 +166,9 @@ class LowLevelControl:
 
         self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_tau )
 
-        steer_kp = 0.5
+        steer_kp = 0.0
         steer_kd = 0.0
-        steer_ki = 1.0
+        steer_ki = 8.0
 
         steer_sat_min = -0.5
         steer_sat_max = 0.5
@@ -225,7 +230,7 @@ class LowLevelControl:
         # inertialsense coordinate has z in opposite direction
         omega_cur_average = -np.mean( self.omega_raw_buffer )
 
-        if abs(self.vel_cur) > 0.2:
+        if abs(self.vel_cur) > 0.1:
             self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
             self.steer_prev = self.steer_cur
         #
