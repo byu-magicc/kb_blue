@@ -5,10 +5,7 @@ from sensor_msgs.msg import Imu
 from controller.msg import Drive
 from std_msgs.msg import Bool
 from kb_utils.msg import Command, Encoder
-<<<<<<< HEAD
 from std_msgs.msg import Float64
-=======
->>>>>>> awesome_controller
 
 from collections import deque
 
