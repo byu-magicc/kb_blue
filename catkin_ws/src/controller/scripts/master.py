@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from waypoint_follower import WaypointFollower
+from pose_controller import PoseController
 
 
 class Master:
@@ -19,6 +20,7 @@ class Master:
     STATE_LINE_UP_BACK = 5
     STATE_WAYPOINTS_BACK = 6
     STATE_DONE = 7
+    STATE_DEBUG = 8
 
     def __init__(self):
         self.state = self.STATE_WAITING_FOR_POSE
@@ -32,20 +34,16 @@ class Master:
 
         self.last_update_time = None
 
-        # waypoints
-        # self.waypoints_there = [ np.array([1.0,0.0]), np.array([2.0,1.0]), np.array([1.0,2.0]) ]
-        self.waypoints_there = [ np.array([5.0,0.0]), np.array([10.0,5.0]), np.array([5.0,10.0]) ]
-        # self.waypoints_there = [ np.array([10.0,0.0]), np.array([20.0,10.0]), np.array([10.0,20.0]) ]
-
-        self.waypoints = self.waypoints_there
+        # controllers
         self.waypoint_follower = WaypointFollower()
-        self.waypoint_follower.set_waypoints(self.waypoints)
+        self.pose_controller = PoseController()
+
+        # waypoints
+        self.waypoints_there = [ np.array([5.0,0.0]), np.array([0.0,5.0]), np.array([5.0,9.0]) ]
 
         # endgame
-        self.final_position_radius = 3.0
-        self.final_position_there = np.array([5.0,10.0])
-
-        self.final_position = self.final_position_there
+        self.waypoint_brigham = np.array([5.0,10.0])
+        self.final_position_radius = 2.0
 
         # plotting stuff
         self.vehicle_marker = np.array([[0.1,-0.1,-0.03,-0.1,0.1],[0.0,0.07,0.0,-0.07,0.0]])
@@ -69,7 +67,8 @@ class Master:
         self.position = np.array([msg.x, msg.y])
         self.heading = msg.theta
 
-        self.velocity, self.steering = self.waypoint_follower.update(self.position, self.heading, dt)
+        # run the control state machine
+        self.velocity, self.steering = self.control(self.position, self.heading, dt)
 
         drive_msg = Drive()
         drive_msg.steering = self.steering
@@ -77,6 +76,53 @@ class Master:
         self.command_pub.publish(drive_msg)
 
         self.goal = self.waypoint_follower.get_goal()
+
+    def control(self, position, heading, dt):
+        velocity, steering = (0, 0)
+
+        if self.state == Master.STATE_WAITING_FOR_POSE:
+            self.waypoint_follower.set_waypoints(self.waypoints_there)
+
+            self.state = Master.STATE_WAYPOINTS_THERE
+            self.state = self.STATE_DEBUG
+
+        elif self.state == Master.STATE_WAYPOINTS_THERE:
+            velocity, steering = self.waypoint_follower.update(position, heading, dt)
+
+            if np.linalg.norm(position - self.waypoint_brigham) < self.final_position_radius:
+                self.state = Master.STATE_LINE_UP_THERE
+
+        elif self.state == Master.STATE_LINE_UP_THERE:
+            import copy
+            goal = copy.deepcopy(self.waypoints_there[-1])
+
+            # goal[1] += -3
+
+            velocity, steering = self.pose_controller.run(goal, position, heading, dt)
+
+        elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
+            pass
+
+        elif self.state == Master.STATE_KISS_BRIGHAM_BACK:
+            pass
+
+        elif self.state == Master.STATE_LINE_UP_BACK:
+            pass
+
+        elif self.state == Master.STATE_WAYPOINTS_BACK:
+            pass
+
+        elif self.state == Master.STATE_DONE:
+            pass
+
+        elif self.state == Master.STATE_DEBUG:
+            goal = np.array([2.5,2.5,0])
+            velocity, steering = self.pose_controller.run(goal, position, heading, dt)
+
+
+        print("Commands: {} {}".format(velocity, steering))
+
+        return velocity, steering
 
     def plotting_callback(self, event):
         if not self.plot_initialized:
@@ -90,11 +136,13 @@ class Master:
 
         self.ax.clear()
 
-        self.ax.plot([w[0] for w in self.waypoints], [w[1] for w in self.waypoints], 'bs')
-        self.ax.plot(self.goal[0], self.goal[1], 'go')
+        self.ax.plot([w[0] for w in self.waypoint_follower.waypoints], [w[1] for w in self.waypoint_follower.waypoints], 'bs', mec='none', alpha=0.3)
 
-        self.ax.plot(self.final_position[0], self.final_position[1], 'r*')
-        self.ax.plot(self.circle_x + self.final_position[0], self.circle_y + self.final_position[1], 'r--')
+        if self.state == Master.STATE_WAYPOINTS_THERE or self.state == Master.STATE_WAYPOINTS_BACK:
+            self.ax.plot(self.goal[0], self.goal[1], 'go')
+
+        self.ax.plot(self.waypoint_brigham[0], self.waypoint_brigham[1], 'r*')
+        self.ax.plot(self.circle_x + self.waypoint_brigham[0], self.circle_y + self.waypoint_brigham[1], 'r--')
 
         R = np.array([[np.cos(self.heading), np.sin(self.heading)],[-np.sin(self.heading), np.cos(self.heading)]]).T
         vehicle = R.dot(self.vehicle_marker) + np.atleast_2d(self.position).T
