@@ -37,6 +37,7 @@ class Master:
         self.encoder_distance = 0.0
         self.encoder_start_kiss = 0.0
         self.encoder_start_retry = 0.0
+        self.encoder_start_line_up_back = 0.0
 
         self.last_update_time = None
 
@@ -46,9 +47,11 @@ class Master:
         self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
         self.pucker_close_distance = rospy.get_param("pose_controller/close_position", 0.05)
         self.pucker_close_heading = rospy.get_param("pose_controller/close_heading", 0.087266)
-        self.retry_distance = rospy.get_param("pose_controller/retry_distance", 0.087266)
-        self.retry_close = rospy.get_param("pose_controller/retry_close", 0.10)
+        self.retry_distance = rospy.get_param("retry_controller/distance", 0.087266)
+        self.retry_close = rospy.get_param("retry_controller/close", 0.10)
         self.kiss_close = rospy.get_param("kiss_controller/close", 0.10)
+        self.line_up_back_distance = rospy.get_param("line_up_back_controller/distance", 3.0)
+        self.line_up_back_close = rospy.get_param("line_up_back_controller/close", 0.10)
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
         self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
         self.steering_max = rospy.get_param("saturation/steering_max", 0.2)
@@ -170,13 +173,16 @@ class Master:
             velocity, steering = self.kiss_controller.run(0, relative_enc, dt)
 
             if np.abs(relative_enc) < self.kiss_close:
+                self.encoder_start_line_up_back = self.encoder_distance
                 self.state = Master.STATE_LINE_UP_BACK
                 rospy.loginfo("Setting state to: LINE_UP_BACK")
 
         elif self.state == Master.STATE_LINE_UP_BACK:
+            relative_enc = self.encoder_distance - self.encoder_start_line_up_back
 
-            # TODO: Change condition
-            if True:
+            velocity, steering = self.kiss_controller.run(-self.line_up_back_distance, relative_enc, dt)
+
+            if np.abs(relative_enc + self.line_up_back_distance) < self.line_up_back_close:
                 self.waypoint_follower.set_waypoints(self.waypoints_back, position)
 
                 self.state = Master.STATE_WAYPOINTS_BACK
