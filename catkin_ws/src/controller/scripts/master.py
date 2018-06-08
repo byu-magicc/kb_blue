@@ -51,7 +51,7 @@ class Master:
         self.kiss_close = rospy.get_param("kiss_controller/close", 0.10)
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
         self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
-        self.steering_max = rospy.get_param("saturation/steering_max", 0.35)
+        self.steering_max = rospy.get_param("saturation/steering_max", 0.2)
 
         # load mission
         self.waypoints_there = rospy.get_param("mission/waypoints_there")

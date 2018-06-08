@@ -13,6 +13,7 @@ class Simulator:
         self.L = 0.18 # wheelbase
 
         self.pos = np.zeros((2, 1))
+        self.pos[0] = 8
         self.theta = np.pi/2
 
         self.v = 0.0 # velocity
@@ -48,7 +49,7 @@ class Simulator:
         self.theta += (self.v / self.L * np.tan(self.gamma)) * dt
 
         # increment noisy encoder
-        sigma = 0.05
+        sigma = 0.005
         eta = sigma*np.random.randn()
         self.distance += np.sign(self.v)*np.linalg.norm(self.pos - self.last_pos) + eta
         self.last_pos = np.copy(self.pos)
@@ -60,6 +61,7 @@ class Simulator:
         self.pose_pub.publish(msg)
 
         msg = Encoder()
+        msg.header.stamp = rospy.Time.now()
         msg.dist = self.distance
         self.enc_pub.publish(msg)
 
