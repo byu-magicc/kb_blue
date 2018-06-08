@@ -162,9 +162,9 @@ class LowLevelControl:
 
         self.vel_ctl = PID( vel_kp, vel_kd, vel_ki, vel_sat_min, vel_sat_max, vel_tau )
 
-        steer_kp = 0.0
+        steer_kp = 0.5
         steer_kd = 0.0
-        steer_ki = 0.0
+        steer_ki = 1.0
 
         steer_sat_min = -0.5
         steer_sat_max = 0.5
@@ -235,7 +235,7 @@ class LowLevelControl:
         # compute control laws
         vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered, self.override_active )
 
-        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
+        steer_cmd_out = -self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
         self.vel_filtered_pub.publish( self.vel_cur )
