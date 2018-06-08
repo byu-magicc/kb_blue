@@ -242,7 +242,12 @@ class LowLevelControl:
 
         steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
 
-        self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
+        cmd_msg = Command()
+        cmd_msg.header.stamp = rospy.Time.now()
+        cmd_msg.throttle = vel_cmd_out
+        cmd_msg.steer = steer_cmd_out
+        self.command_pub.publish(cmd_msg)
+        
         self.vel_filtered_pub.publish( self.vel_cur )
         self.vel_des_filtered_pub.publish( self.vel_des_filtered )
         self.steering_angle_pub.publish( self.steer_cur )
