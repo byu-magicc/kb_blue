@@ -4,6 +4,7 @@ import time
 import rospy
 from controller.msg import Drive
 from geometry_msgs.msg import Pose2D
+from kb_utils.msg import Encoder
 
 import numpy as np
 
@@ -20,8 +21,12 @@ class Simulator:
         # What for plot to initialize before simulating car dynamics
         time.sleep(0.5)
 
+        # encoder distance
+        self.distance = 0
+
         self.drive_sub = rospy.Subscriber("drive", Drive, self.drive_callback)
         self.pose_pub = rospy.Publisher("pose", Pose2D, queue_size=1)
+        self.enc_pub = rospy.Publisher("encoder", Encoder, queue_size=1)
         self.dynamics_timer = rospy.Timer(rospy.Duration(0.01), self.dynamics_timer_callback)
 
     def init_plot(self):
@@ -41,11 +46,20 @@ class Simulator:
         self.pos[1] += (self.v * np.sin(self.theta)) * dt
         self.theta += (self.v / self.L * np.tan(self.gamma)) * dt
 
+        # increment noisy encoder
+        sigma = 0.05*0
+        eta = sigma*np.random.randn()
+        self.distance = np.sign(self.v)*np.linalg.norm(self.pos) + eta
+
         msg = Pose2D()
         msg.x = self.pos[0]
         msg.y = self.pos[1]
         msg.theta = self.theta
         self.pose_pub.publish(msg)
+
+        msg = Encoder()
+        msg.dist = self.distance
+        self.enc_pub.publish(msg)
 
 if __name__ == '__main__':
     rospy.init_node("simulator", anonymous=False)

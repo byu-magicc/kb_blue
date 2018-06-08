@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from waypoint_follower import WaypointFollower
 from pose_controller import PoseController
+from kiss_controller import KissController
 
 
 class Master:
@@ -60,7 +61,7 @@ class Master:
         # instantiate controllers
         self.waypoint_follower = WaypointFollower(self.nominal_delta, self.lead_distance, self.follow_distance)
         self.pose_controller = PoseController()
-        self.kiss_controller = None
+        self.kiss_controller = KissController()
 
         # ROS pub/sub
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
@@ -123,6 +124,8 @@ class Master:
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
+            velocity, steering = self.kiss_controller.run(self.pucker_pose, position, heading, dt)
+
             # TODO: Change condition
             if True:
                 self.state = Master.STATE_KISS_BRIGHAM_BACK
