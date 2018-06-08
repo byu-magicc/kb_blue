@@ -11,3 +11,9 @@
 	path = catkin_ws/src/inertial_sense_ros
 	url = https://github.com/inertialsense/inertial_sense_ros.git
 	branch = release
+[submodule "catkin_ws/src/vrpn_client_ros"]
+	path = catkin_ws/src/vrpn_client_ros
+	url = https://github.com/ros-drivers/vrpn_client_ros.git
+[submodule "catkin_ws/src/vrpn_transform"]
+	path = catkin_ws/src/vrpn_transform
+	url = https://magiccvs.byu.edu/gitlab/lab/vrpn_transform.git 
