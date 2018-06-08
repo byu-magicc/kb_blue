@@ -33,17 +33,17 @@ class Master:
 
         self.last_update_time = None
 
-        # controllers
-        self.waypoint_follower = WaypointFollower()
-        self.pose_controller = PoseController()
+        # parameters
+        self.nominal_delta = rospy.get_param("waypoint_follower/delta", 0.1)
+        self.lead_distance = rospy.get_param("waypoint_follower/lead_distance", 1.0)
+        self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
 
-        # waypoints
-        self.waypoints_there = [ np.array([5.0,0.0]), np.array([0.0,5.0]), np.array([5.0,9.5]) ]
-
-        # endgame
-        self.waypoint_brigham = np.array([5.0,10.0])
-        self.final_heading = np.pi/2
-        self.final_position_radius = 1.5
+        # load mission
+        self.waypoints_there = rospy.get_param("mission/waypoints_there")
+        self.waypoints_back = rospy.get_param("mission/waypoints_back")
+        self.waypoint_brigham = rospy.get_param("mission/endgame/waypoint_brigham")
+        self.final_heading = rospy.get_param("mission/endgame/heading")
+        self.final_position_radius = rospy.get_param("mission/endgame/radius")
 
         # plotting stuff
         self.vehicle_marker = np.array([[0.1,-0.1,-0.03,-0.1,0.1],[0.0,0.07,0.0,-0.07,0.0]])
@@ -52,7 +52,11 @@ class Master:
         self.circle_x = self.final_position_radius * np.cos(np.arange(0.0, 2*np.pi, 0.05))
         self.circle_y = self.final_position_radius * np.sin(np.arange(0.0, 2*np.pi, 0.05))
 
-        # ROS
+        # instantiate controllers
+        self.waypoint_follower = WaypointFollower(self.nominal_delta, self.lead_distance, self.follow_distance)
+        self.pose_controller = PoseController()
+
+        # ROS pub/sub
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
         self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)

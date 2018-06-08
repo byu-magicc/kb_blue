@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class WaypointFollower:
-    def __init__(self):
+    def __init__(self, nominal_delta, lead_distance, follow_distance):
         self.have_waypoints = False
         self.waypoints = []
         self.path = []
@@ -16,11 +16,11 @@ class WaypointFollower:
         self.position = np.zeros((2,))
         self.heading = 0.0
 
-        self.nominal_delta = rospy.get_param("delta", 0.1)
-        self.lead_distance = rospy.get_param("lead_distance", 1.0)
-        self.follow_distance = rospy.get_param("follow_distance", 0.8)
+        self.nominal_delta = nominal_delta
+        self.lead_distance = lead_distance
+        self.follow_distance = follow_distance
 
-        self.trajectory_controller = TrajectoryController(self.follow_distance)
+        self.trajectory_controller = TrajectoryController(follow_distance)
 
     def set_waypoints(self, waypoints, plot=False):
         self.waypoints = waypoints

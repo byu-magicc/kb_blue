@@ -1,0 +1,18 @@
+waypoint_follower:
+  delta: 0.1
+  lead_distance: 1.0
+  follow_distance: 0.8
+
+mission:
+  waypoints_there:
+    - [5.0, 0.0]
+    - [0.0, 5.0]
+    - [5.0, 9.5]
+  waypoints_back:
+    - [5.0, 8.5]
+    - [0.0, 4.0]
+    - [5.0, -1.0]
+  endgame:
+    waypoint_brigham: [5.0, 10.0]
+    heading: 1.570795
+    radius: 1.5
