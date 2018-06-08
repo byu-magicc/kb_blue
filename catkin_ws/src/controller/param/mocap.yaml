@@ -1,0 +1,25 @@
+waypoint_follower:
+  delta: 0.1
+  lead_distance: 1.0
+  follow_distance: 0.8
+
+pose_controller:
+  close: 0.05
+
+saturation:
+  velocity_max: 1.0
+  velocity_min: -1.0
+  steering_max: 0.3
+
+mission:
+  waypoints_there:
+    - [-0.37, 1.25]
+  waypoints_back:
+    - [-0.37, 1.25]
+    - [-2.71, 1.20]
+  pucker_pose: [1.92, -1.32, -1.54]
+  landmarks:
+    home: [-2.71, 1.20]
+    brigham: [15.0, 3.5]
+  endgame:
+    radius: 3.0

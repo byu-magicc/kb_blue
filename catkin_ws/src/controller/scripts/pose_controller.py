@@ -6,7 +6,7 @@ class PoseController:
         # stability is acheived for:
         # k_rho > 0, k_beta < 0, k_alpha - k_rho > 0
         self.rho_PID = PID(1.0, None, None, 0, 3)
-        self.alpha_PID = PID(6.0, None, None, -np.pi/2, np.pi/2)
+        self.alpha_PID = PID(8.0, None, None, -np.pi/2, np.pi/2)
         self.beta_PID = PID(-2.0, None, None, -np.pi/2, np.pi/2)
 
         # direction
