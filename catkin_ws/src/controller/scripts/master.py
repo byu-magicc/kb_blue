@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import Pose2D
 from controller.msg import Drive
+from kb_utils.msg import Encoder
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,6 +33,9 @@ class Master:
         self.velocity = 0.0
         self.steering = 0.0
 
+        self.encoder_distance = 0.0
+        self.encoder_start_kiss = 0.0
+
         self.last_update_time = None
 
         # parameters
@@ -39,6 +43,7 @@ class Master:
         self.lead_distance = rospy.get_param("waypoint_follower/lead_distance", 1.0)
         self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
         self.pose_close = rospy.get_param("pose_controller/close", 0.05)
+        self.pucker_close = rospy.get_param("kiss_controller/close", 0.10)
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
         self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
         self.steering_max = rospy.get_param("saturation/steering_max", 0.35)
@@ -50,6 +55,9 @@ class Master:
         self.landmark_brigham = rospy.get_param("mission/landmarks/brigham")
         self.pucker_pose = rospy.get_param("mission/pucker_pose")
         self.final_position_radius = rospy.get_param("mission/endgame/radius")
+
+        # calculate distance between brigham and pucker pose
+        self.pucker_dist = np.linalg.norm(np.array(self.landmark_brigham) - np.array(self.pucker_pose[:2]))
 
         # plotting stuff
         self.vehicle_marker = np.array([[0.1,-0.1,-0.03,-0.1,0.1],[0.0,0.07,0.0,-0.07,0.0]])
@@ -65,8 +73,12 @@ class Master:
 
         # ROS pub/sub
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
+        self.enc_sub = rospy.Subscriber("encoder", Encoder, self.encoder_callback)
         self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
+
+    def encoder_callback(self, msg):
+        self.encoder_distance = msg.dist
 
     def pose_callback(self, msg):
         if self.last_update_time:
@@ -120,20 +132,25 @@ class Master:
             velocity, steering = self.pose_controller.run(self.pucker_pose, position, heading, dt)
 
             if np.linalg.norm(position - self.pucker_pose[:2]) < self.pose_close:
+                self.encoder_start_kiss = self.encoder_distance
                 self.state = Master.STATE_KISS_BRIGHAM_THERE
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
-            velocity, steering = self.kiss_controller.run(self.pucker_pose, position, heading, dt)
+            relative_enc = self.encoder_distance - self.encoder_start_kiss
 
-            # TODO: Change condition
-            if True:
+            velocity, steering = self.kiss_controller.run(self.pucker_dist, relative_enc, dt)
+
+            if np.abs(self.pucker_dist - relative_enc) < self.pucker_close:
                 self.state = Master.STATE_KISS_BRIGHAM_BACK
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_BACK")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_BACK:
-            # TODO: Change condition
-            if True:
+            relative_enc = self.encoder_distance - self.encoder_start_kiss
+
+            velocity, steering = self.kiss_controller.run(0, relative_enc, dt)
+
+            if np.abs(relative_enc) < self.pucker_close:
                 self.state = Master.STATE_LINE_UP_BACK
                 rospy.loginfo("Setting state to: LINE_UP_BACK")
 
@@ -171,7 +188,7 @@ class Master:
             self.plot_initialized = True
 
         self.ax.clear()
-        self.ax.axis([-2, 16, -2, 10])
+        self.ax.axis([-2, 20, -2, 10])
 
         self.ax.plot([w[0] for w in self.waypoint_follower.waypoints], [w[1] for w in self.waypoint_follower.waypoints], 'bs', mec='none', alpha=0.3)
 

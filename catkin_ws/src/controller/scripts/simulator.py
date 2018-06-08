@@ -23,6 +23,7 @@ class Simulator:
 
         # encoder distance
         self.distance = 0
+        self.last_pos = np.zeros((2,1))
 
         self.drive_sub = rospy.Subscriber("drive", Drive, self.drive_callback)
         self.pose_pub = rospy.Publisher("pose", Pose2D, queue_size=1)
@@ -47,9 +48,10 @@ class Simulator:
         self.theta += (self.v / self.L * np.tan(self.gamma)) * dt
 
         # increment noisy encoder
-        sigma = 0.05*0
+        sigma = 0.05
         eta = sigma*np.random.randn()
-        self.distance = np.sign(self.v)*np.linalg.norm(self.pos) + eta
+        self.distance += np.sign(self.v)*np.linalg.norm(self.pos - self.last_pos) + eta
+        self.last_pos = np.copy(self.pos)
 
         msg = Pose2D()
         msg.x = self.pos[0]
