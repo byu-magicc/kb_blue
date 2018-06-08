@@ -20,7 +20,6 @@ class Master:
     STATE_LINE_UP_BACK = 5
     STATE_WAYPOINTS_BACK = 6
     STATE_DONE = 7
-    STATE_DEBUG = 8
 
     def __init__(self):
         self.state = self.STATE_WAITING_FOR_POSE
@@ -39,11 +38,12 @@ class Master:
         self.pose_controller = PoseController()
 
         # waypoints
-        self.waypoints_there = [ np.array([5.0,0.0]), np.array([0.0,5.0]), np.array([5.0,9.0]) ]
+        self.waypoints_there = [ np.array([5.0,0.0]), np.array([0.0,5.0]), np.array([5.0,9.5]) ]
 
         # endgame
         self.waypoint_brigham = np.array([5.0,10.0])
-        self.final_position_radius = 2.0
+        self.final_heading = np.pi/2
+        self.final_position_radius = 1.5
 
         # plotting stuff
         self.vehicle_marker = np.array([[0.1,-0.1,-0.03,-0.1,0.1],[0.0,0.07,0.0,-0.07,0.0]])
@@ -84,21 +84,24 @@ class Master:
             self.waypoint_follower.set_waypoints(self.waypoints_there)
 
             self.state = Master.STATE_WAYPOINTS_THERE
-            self.state = self.STATE_DEBUG
+            rospy.loginfo("Setting state to: WAYPOINTS_THERE")
 
         elif self.state == Master.STATE_WAYPOINTS_THERE:
             velocity, steering = self.waypoint_follower.update(position, heading, dt)
 
             if np.linalg.norm(position - self.waypoint_brigham) < self.final_position_radius:
                 self.state = Master.STATE_LINE_UP_THERE
+                rospy.loginfo("Setting state to: LINE_UP_THERE")
 
         elif self.state == Master.STATE_LINE_UP_THERE:
-            import copy
-            goal = copy.deepcopy(self.waypoints_there[-1])
-
-            # goal[1] += -3
+            final_wp = self.waypoints_there[-1]
+            goal = np.append(final_wp, [self.final_heading])
 
             velocity, steering = self.pose_controller.run(goal, position, heading, dt)
+
+            if np.linalg.norm(position - final_wp) < 0.05:
+                self.state = Master.STATE_KISS_BRIGHAM_THERE
+                rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
             pass
@@ -115,13 +118,6 @@ class Master:
         elif self.state == Master.STATE_DONE:
             pass
 
-        elif self.state == Master.STATE_DEBUG:
-            goal = np.array([2.5,2.5,0])
-            velocity, steering = self.pose_controller.run(goal, position, heading, dt)
-
-
-        print("Commands: {} {}".format(velocity, steering))
-
         return velocity, steering
 
     def plotting_callback(self, event):
@@ -135,6 +131,7 @@ class Master:
             self.plot_initialized = True
 
         self.ax.clear()
+        self.ax.axis([-2, 12, -2, 12])
 
         self.ax.plot([w[0] for w in self.waypoint_follower.waypoints], [w[1] for w in self.waypoint_follower.waypoints], 'bs', mec='none', alpha=0.3)
 

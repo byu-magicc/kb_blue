@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import time
+
 import rospy
 from controller.msg import Drive
 from geometry_msgs.msg import Pose2D
@@ -15,6 +17,9 @@ class Simulator:
 
         self.v = 0.0 # velocity
         self.gamma = 0.0 # steering angle
+
+        # What for plot to initialize before simulating car dynamics
+        time.sleep(0.5)
 
         self.drive_sub = rospy.Subscriber("drive", Drive, self.drive_callback)
         self.pose_pub = rospy.Publisher("pose", Pose2D, queue_size=1)
