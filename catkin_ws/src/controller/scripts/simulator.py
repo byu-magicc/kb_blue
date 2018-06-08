@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time
 
 import rospy
 from controller.msg import Drive
@@ -11,10 +12,13 @@ class Simulator:
         self.L = 0.18 # wheelbase
 
         self.pos = np.zeros((2, 1))
-        self.theta = 0.0
+        self.theta = np.pi/2
 
         self.v = 0.0 # velocity
         self.gamma = 0.0 # steering angle
+
+        # What for plot to initialize before simulating car dynamics
+        time.sleep(0.5)
 
         self.drive_sub = rospy.Subscriber("drive", Drive, self.drive_callback)
         self.pose_pub = rospy.Publisher("pose", Pose2D, queue_size=1)
