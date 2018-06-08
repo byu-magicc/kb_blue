@@ -223,7 +223,8 @@ class LowLevelControl:
         self.vel_des_filtered += 1.0/self.vel_filter_tau * (self.vel_des_cur - self.vel_des_filtered) * dt
 
 
-        omega_cur_average = np.mean( self.omega_raw_buffer )
+        # inertialsense coordinate has z in opposite direction
+        omega_cur_average = -np.mean( self.omega_raw_buffer )
 
         if abs(self.vel_cur) > 0.2:
             self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
@@ -235,7 +236,7 @@ class LowLevelControl:
         # compute control laws
         vel_cmd_out = self.vel_ctl.compute_pid( dt, half_dt, self.vel_cur, self.vel_des_filtered, self.override_active )
 
-        steer_cmd_out = -self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
+        steer_cmd_out = self.steer_ctl.compute_pid( dt, half_dt, self.steer_cur, self.steer_des_cur, self.override_active )
 
         self.command_pub.publish( throttle=vel_cmd_out, steer=steer_cmd_out )
         self.vel_filtered_pub.publish( self.vel_cur )
