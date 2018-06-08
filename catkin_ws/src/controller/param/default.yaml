@@ -3,6 +3,14 @@ waypoint_follower:
   lead_distance: 1.0
   follow_distance: 0.8
 
+pose_controller:
+  close: 0.05
+
+saturation:
+  velocity_max: 1.0
+  velocity_min: -1.0
+  steering_max: 0.3
+
 mission:
   waypoints_there:
     - [0.0, 5.0]

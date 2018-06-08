@@ -37,6 +37,10 @@ class Master:
         self.nominal_delta = rospy.get_param("waypoint_follower/delta", 0.1)
         self.lead_distance = rospy.get_param("waypoint_follower/lead_distance", 1.0)
         self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
+        self.pose_close = rospy.get_param("pose_controller/close", 0.05)
+        self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
+        self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
+        self.steering_max = rospy.get_param("saturation/steering_max", 0.35)
 
         # load mission
         self.waypoints_there = rospy.get_param("mission/waypoints_there")
@@ -75,6 +79,17 @@ class Master:
         # run the control state machine
         self.velocity, self.steering = self.control(self.position, self.heading, dt)
 
+        # saturate commands
+        if self.velocity > self.velocity_max:
+            self.velocity = self.velocity_max
+        elif self.velocity < self.velocity_min:
+            self.velocity = self.velocity_min
+
+        if self.steering > self.steering_max:
+            self.steering = self.steering_max
+        elif self.steering < -self.steering_max:
+            self.steering = -self.steering_max
+
         drive_msg = Drive()
         drive_msg.steering = self.steering
         drive_msg.velocity = self.velocity
@@ -86,7 +101,7 @@ class Master:
         velocity, steering = (0, 0)
 
         if self.state == Master.STATE_WAITING_FOR_POSE:
-            self.waypoint_follower.set_waypoints(self.waypoints_there)
+            self.waypoint_follower.set_waypoints(self.waypoints_there, position)
 
             self.state = Master.STATE_WAYPOINTS_THERE
             rospy.loginfo("Setting state to: WAYPOINTS_THERE")
@@ -104,7 +119,7 @@ class Master:
 
             velocity, steering = self.pose_controller.run(goal, position, heading, dt)
 
-            if np.linalg.norm(position - final_wp) < 0.05:
+            if np.linalg.norm(position - final_wp) < self.pose_close:
                 self.state = Master.STATE_KISS_BRIGHAM_THERE
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
@@ -124,7 +139,7 @@ class Master:
 
             # TODO: Change condition
             if True:
-                self.waypoint_follower.set_waypoints(self.waypoints_back)
+                self.waypoint_follower.set_waypoints(self.waypoints_back, position)
 
                 self.state = Master.STATE_WAYPOINTS_BACK
                 rospy.loginfo("Setting state to: WAYPOINTS_BACK")

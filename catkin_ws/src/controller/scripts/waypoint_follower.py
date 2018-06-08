@@ -22,7 +22,8 @@ class WaypointFollower:
 
         self.trajectory_controller = TrajectoryController(follow_distance)
 
-    def set_waypoints(self, waypoints, plot=False):
+    def set_waypoints(self, waypoints, position, plot=False):
+        self.position = position
         self.waypoints = waypoints
         self.generate_path()
         self.have_waypoints = True
