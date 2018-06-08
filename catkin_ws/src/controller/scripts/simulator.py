@@ -13,7 +13,7 @@ class Simulator:
         self.L = 0.18 # wheelbase
 
         self.pos = np.zeros((2, 1))
-        self.theta = 0.0
+        self.theta = np.pi/2
 
         self.v = 0.0 # velocity
         self.gamma = 0.0 # steering angle

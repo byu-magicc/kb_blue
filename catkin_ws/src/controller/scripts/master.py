@@ -41,7 +41,8 @@ class Master:
         # load mission
         self.waypoints_there = rospy.get_param("mission/waypoints_there")
         self.waypoints_back = rospy.get_param("mission/waypoints_back")
-        self.waypoint_brigham = rospy.get_param("mission/endgame/waypoint_brigham")
+        self.landmark_home = rospy.get_param("mission/landmarks/home")
+        self.landmark_brigham = rospy.get_param("mission/landmarks/brigham")
         self.final_heading = rospy.get_param("mission/endgame/heading")
         self.final_position_radius = rospy.get_param("mission/endgame/radius")
 
@@ -93,7 +94,7 @@ class Master:
         elif self.state == Master.STATE_WAYPOINTS_THERE:
             velocity, steering = self.waypoint_follower.update(position, heading, dt)
 
-            if np.linalg.norm(position - self.waypoint_brigham) < self.final_position_radius:
+            if np.linalg.norm(position - self.landmark_brigham) < self.final_position_radius:
                 self.state = Master.STATE_LINE_UP_THERE
                 rospy.loginfo("Setting state to: LINE_UP_THERE")
 
@@ -108,16 +109,34 @@ class Master:
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
-            pass
+            # TODO: Change condition
+            if True:
+                self.state = Master.STATE_KISS_BRIGHAM_BACK
+                rospy.loginfo("Setting state to: KISS_BRIGHAM_BACK")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_BACK:
-            pass
+            # TODO: Change condition
+            if True:
+                self.state = Master.STATE_LINE_UP_BACK
+                rospy.loginfo("Setting state to: LINE_UP_BACK")
 
         elif self.state == Master.STATE_LINE_UP_BACK:
-            pass
+
+            # TODO: Change condition
+            if True:
+                self.waypoint_follower.set_waypoints(self.waypoints_back)
+
+                self.state = Master.STATE_WAYPOINTS_BACK
+                rospy.loginfo("Setting state to: WAYPOINTS_BACK")
+
 
         elif self.state == Master.STATE_WAYPOINTS_BACK:
-            pass
+            velocity, steering = self.waypoint_follower.update(position, heading, dt)
+
+            # TODO: Better logic for "if I'm at the last waypoint"
+            if np.linalg.norm(position - self.landmark_home) < self.lead_distance*1.1:
+                self.state = Master.STATE_DONE
+                rospy.loginfo("Setting state to: DONE")
 
         elif self.state == Master.STATE_DONE:
             pass
@@ -135,15 +154,15 @@ class Master:
             self.plot_initialized = True
 
         self.ax.clear()
-        self.ax.axis([-2, 12, -2, 12])
+        self.ax.axis([-2, 16, -2, 10])
 
         self.ax.plot([w[0] for w in self.waypoint_follower.waypoints], [w[1] for w in self.waypoint_follower.waypoints], 'bs', mec='none', alpha=0.3)
 
         if self.state == Master.STATE_WAYPOINTS_THERE or self.state == Master.STATE_WAYPOINTS_BACK:
             self.ax.plot(self.goal[0], self.goal[1], 'go')
 
-        self.ax.plot(self.waypoint_brigham[0], self.waypoint_brigham[1], 'r*')
-        self.ax.plot(self.circle_x + self.waypoint_brigham[0], self.circle_y + self.waypoint_brigham[1], 'r--')
+        self.ax.plot(self.landmark_brigham[0], self.landmark_brigham[1], 'r*')
+        self.ax.plot(self.circle_x + self.landmark_brigham[0], self.circle_y + self.landmark_brigham[1], 'r--')
 
         R = np.array([[np.cos(self.heading), np.sin(self.heading)],[-np.sin(self.heading), np.cos(self.heading)]]).T
         vehicle = R.dot(self.vehicle_marker) + np.atleast_2d(self.position).T
