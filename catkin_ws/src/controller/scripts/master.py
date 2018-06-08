@@ -17,11 +17,12 @@ class Master:
     STATE_WAITING_FOR_POSE = 0
     STATE_WAYPOINTS_THERE = 1
     STATE_LINE_UP_THERE = 2
-    STATE_KISS_BRIGHAM_THERE = 3
-    STATE_KISS_BRIGHAM_BACK = 4
-    STATE_LINE_UP_BACK = 5
-    STATE_WAYPOINTS_BACK = 6
-    STATE_DONE = 7
+    STATE_RETRY_LINE_UP_THERE = 3
+    STATE_KISS_BRIGHAM_THERE = 4
+    STATE_KISS_BRIGHAM_BACK = 5
+    STATE_LINE_UP_BACK = 6
+    STATE_WAYPOINTS_BACK = 7
+    STATE_DONE = 8
 
     def __init__(self):
         self.state = self.STATE_WAITING_FOR_POSE
@@ -35,6 +36,7 @@ class Master:
 
         self.encoder_distance = 0.0
         self.encoder_start_kiss = 0.0
+        self.encoder_start_retry = 0.0
 
         self.last_update_time = None
 
@@ -42,8 +44,11 @@ class Master:
         self.nominal_delta = rospy.get_param("waypoint_follower/delta", 0.1)
         self.lead_distance = rospy.get_param("waypoint_follower/lead_distance", 1.0)
         self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
-        self.pose_close = rospy.get_param("pose_controller/close", 0.05)
-        self.pucker_close = rospy.get_param("kiss_controller/close", 0.10)
+        self.pucker_close_distance = rospy.get_param("pose_controller/close_position", 0.05)
+        self.pucker_close_heading = rospy.get_param("pose_controller/close_heading", 0.087266)
+        self.retry_distance = rospy.get_param("pose_controller/retry_distance", 0.087266)
+        self.retry_close = rospy.get_param("pose_controller/retry_close", 0.10)
+        self.kiss_close = rospy.get_param("kiss_controller/close", 0.10)
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
         self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
         self.steering_max = rospy.get_param("saturation/steering_max", 0.35)
@@ -131,17 +136,31 @@ class Master:
         elif self.state == Master.STATE_LINE_UP_THERE:
             velocity, steering = self.pose_controller.run(self.pucker_pose, position, heading, dt)
 
-            if np.linalg.norm(position - self.pucker_pose[:2]) < self.pose_close:
-                self.encoder_start_kiss = self.encoder_distance
-                self.state = Master.STATE_KISS_BRIGHAM_THERE
-                rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
+            if np.linalg.norm(position - self.pucker_pose[:2]) < self.pucker_close_distance:
+                if abs(heading - self.pucker_pose[2]) < self.pucker_close_heading:
+                    self.encoder_start_kiss = self.encoder_distance
+                    self.state = Master.STATE_KISS_BRIGHAM_THERE
+                    rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
+                else:
+                    self.encoder_start_retry = self.encoder_distance
+                    self.state = Master.STATE_RETRY_LINE_UP_THERE
+                    rospy.loginfo("Setting state to: RETRY_LINE_UP_THERE")
+
+        elif self.state == Master.STATE_RETRY_LINE_UP_THERE:
+            relative_enc = self.encoder_distance - self.encoder_start_retry
+
+            velocity, steering = self.kiss_controller.run(-self.retry_distance, relative_enc, dt)
+
+            if np.abs(relative_enc + self.retry_distance) < self.retry_close:
+                self.state = Master.STATE_LINE_UP_THERE
+                rospy.loginfo("Setting state to: RETRY_LINE_UP_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
             relative_enc = self.encoder_distance - self.encoder_start_kiss
 
             velocity, steering = self.kiss_controller.run(self.pucker_dist, relative_enc, dt)
 
-            if np.abs(self.pucker_dist - relative_enc) < self.pucker_close:
+            if np.abs(self.pucker_dist - relative_enc) < self.kiss_close:
                 self.state = Master.STATE_KISS_BRIGHAM_BACK
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_BACK")
 
@@ -150,7 +169,7 @@ class Master:
 
             velocity, steering = self.kiss_controller.run(0, relative_enc, dt)
 
-            if np.abs(relative_enc) < self.pucker_close:
+            if np.abs(relative_enc) < self.kiss_close:
                 self.state = Master.STATE_LINE_UP_BACK
                 rospy.loginfo("Setting state to: LINE_UP_BACK")
 

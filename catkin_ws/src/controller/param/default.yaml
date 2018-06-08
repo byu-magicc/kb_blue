@@ -4,7 +4,10 @@ waypoint_follower:
   follow_distance: 0.8
 
 pose_controller:
-  close: 0.05
+  close_distance: 0.05
+  close_heading: 0.087266 # 5 degrees
+  retry_distance: 2.0
+  retry_close: 0.10
 
 saturation:
   velocity_max: 1.0
