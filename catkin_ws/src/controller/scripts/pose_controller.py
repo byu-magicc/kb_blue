@@ -5,8 +5,8 @@ class PoseController:
     def __init__(self):
         # stability is acheived for:
         # k_rho > 0, k_beta < 0, k_alpha - k_rho > 0
-        self.rho_PID = PID(1.0, None, None, 0, 3)
-        self.alpha_PID = PID(8.0, None, None, -np.pi/2, np.pi/2)
+        self.rho_PID = PID(0.5, None, None, 0, 3)
+        self.alpha_PID = PID(4.0, None, None, -np.pi/2, np.pi/2)
         self.beta_PID = PID(-2.0, None, None, -np.pi/2, np.pi/2)
 
         # direction
@@ -48,7 +48,7 @@ class PoseController:
 
         elif self.D == 1:
             beta = -np.arctan2(-pos_err[1], -pos_err[0])
-            alpha = -(heading + beta)       
+            alpha = -(heading + beta)
 
         # saturate alpha
         if alpha > np.pi/2:
@@ -60,6 +60,6 @@ class PoseController:
 
 
     def virtual_unicycle(self, omega, velocity):
-        steering = omega/np.abs(velocity)
+        steering = np.arctan(omega*self.L/velocity)
 
         return steering
