@@ -14,7 +14,7 @@
            $ roslaunch rtabmap_ros bumblebee.launch -->
 
   <!--Odom to Pose for controller-->
-  <node pkg="kb_blue" type="rtab_translate.py" name="odom_to_pose" output="screen">
+  <node pkg="kb_blue" type="rtab_tf_for_reals.py" name="odom_to_pose" output="screen">
     <remap from="odom_in" to="/rtabmap/odom"/>
   </node>
 
@@ -194,13 +194,13 @@
 
           <!--Ros wiki VO with limited computing power options-->
           <!-- 0=Frame-to-Map (F2M) 1=Frame-to-Frame (F2F) -->
-          <!--<param name="Odom/Strategy" value="1"/>-->
+          <param name="Odom/Strategy" value="1"/>
           <!-- Correspondences: 0=Features Matching, 1=Optical Flow -->
-          <!--<param name="Vis/CorType" value="1"/>-->
+          <param name="Vis/CorType" value="1"/>
           <!-- maximum features map size, default 2000 -->
-          <!--<param name="OdomF2M/MaxSize" type="string" value="1000"/> -->
+          <param name="OdomF2M/MaxSize" type="string" value="1000"/> 
           <!-- maximum features extracted by image, default 1000 -->
-          <!--<param name="Vis/MaxFeatures" type="string" value="600"/>-->
+          <param name="Vis/MaxFeatures" type="string" value="600"/>
         </node>
 
         <!-- Stereo Odometry -->
