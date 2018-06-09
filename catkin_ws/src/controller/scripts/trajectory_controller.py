@@ -4,7 +4,7 @@ import numpy as np
 class TrajectoryController:
     def __init__(self, follow_distance):
         self.d = follow_distance
-        self.angle_PID = PID(1.0, None, None, -0.35, 0.35)
+        self.angle_PID = PID(0.2, None, None, -0.35, 0.35)
         self.distance_PID = PID(5.0, None, 0.0, 0.0, 3.0)
 
     def run(self, goal, position, heading, dt):

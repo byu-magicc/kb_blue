@@ -188,7 +188,7 @@ class Master:
             self.plot_initialized = True
 
         self.ax.clear()
-        self.ax.axis([-2, 20, -2, 10])
+        self.ax.axis([-2, 20, -15, 5])
 
         self.ax.plot([w[0] for w in self.waypoint_follower.waypoints], [w[1] for w in self.waypoint_follower.waypoints], 'bs', mec='none', alpha=0.3)
 
