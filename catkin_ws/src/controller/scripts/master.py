@@ -46,8 +46,8 @@ class Master:
         self.lead_distance = rospy.get_param("waypoint_follower/lead_distance", 1.0)
         self.follow_distance = rospy.get_param("waypoint_follower/follow_distance", 0.8)
         self.pucker_close_distance = rospy.get_param("pose_controller/close_position", 0.05)
-        self.pucker_close_heading = rospy.get_param("pose_controller/close_heading", 0.087266)
-        self.retry_distance = rospy.get_param("retry_controller/distance", 0.087266)
+        self.pucker_close_heading = rospy.get_param("pose_controller/close_heading", 0.17)
+        self.retry_distance = rospy.get_param("retry_controller/distance", 2.0)
         self.retry_close = rospy.get_param("retry_controller/close", 0.10)
         self.kiss_close = rospy.get_param("kiss_controller/close", 0.10)
         self.line_up_back_distance = rospy.get_param("line_up_back_controller/distance", 3.0)
@@ -156,7 +156,7 @@ class Master:
 
             if np.abs(relative_enc + self.retry_distance) < self.retry_close:
                 self.state = Master.STATE_LINE_UP_THERE
-                rospy.loginfo("Setting state to: RETRY_LINE_UP_THERE")
+                rospy.loginfo("Setting state to: LINE_UP_THERE")
 
         elif self.state == Master.STATE_KISS_BRIGHAM_THERE:
             relative_enc = self.encoder_distance - self.encoder_start_kiss

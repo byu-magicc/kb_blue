@@ -3,7 +3,7 @@ import numpy as np
 
 class KissController:
     def __init__(self):
-        self.distance_PID = PID(1.0, None, None, -3, 3)
+        self.distance_PID = PID(1.0, None, None, -0.5, 0.5)
 
     def run(self, distance_desired, distance, dt):
 

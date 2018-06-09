@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+    <rosparam command="load" file="$(find controller)/param/mocap.yaml" />
+
+    <node name="manager" pkg="controller" type="master.py" output="screen"/>
+
+</launch>

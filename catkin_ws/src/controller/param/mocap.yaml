@@ -4,7 +4,8 @@ waypoint_follower:
   follow_distance: 0.8
 
 pose_controller:
-  close: 0.05
+  close_position: 0.10
+  close_heading: 0.17
 
 saturation:
   velocity_max: 1.0
@@ -20,6 +21,6 @@ mission:
   pucker_pose: [1.92, -1.32, -1.54]
   landmarks:
     home: [-2.71, 1.20]
-    brigham: [15.0, 3.5]
+    brigham: [1.92, -2.20]
   endgame:
     radius: 3.0

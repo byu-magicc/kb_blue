@@ -127,7 +127,7 @@ class LowLevelControl:
         self.vel_prev = 0.0
 
         self.vel_des_filtered = 0.0
-        self.vel_filter_tau = 0.2
+        self.vel_filter_tau = 0.8
 
         # self.omega_cur = 0.0
         # self.omega_prev = 0.0
