@@ -2,16 +2,17 @@
 <launch>
 
     <!-- Vision system -->
-    <include file="$(kb_blue)/launch/d435.launch" />
-    <include file="$(kb_blue)/launch/localize_rtab.launch">
+    <include file="$(find kb_blue)/launch/d435.launch" />
+    <include file="$(find kb_blue)/launch/localize_rtab.launch">
         <arg name="localization" value="true" />
     </include>
 
     <!-- Low-level control -->
-    <include file="$(controller)/launch/controller.launch" />
+    <include file="$(find controller)/launch/controller.launch" />
 
     <!-- High level controller -->
-    <rosparam command="load" file="$(find controller)/param/win.yaml" />
+    <!--<rosparam command="load" file="$(find controller)/param/pruned_win.yaml" />-->
+    <!--
     <node name="manager" pkg="controller" type="master.py" output="screen" />
-
+    -->
 </launch>

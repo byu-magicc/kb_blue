@@ -6,7 +6,7 @@ from controller.msg import Drive
 from kb_utils.msg import Encoder
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from waypoint_follower import WaypointFollower
 from pose_controller import PoseController
@@ -85,7 +85,7 @@ class Master:
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
         self.enc_sub = rospy.Subscriber("encoder", Encoder, self.encoder_callback)
 
-        if self.plot_gui:
+        if self.plot_gui and False:
             self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
     def encoder_callback(self, msg):

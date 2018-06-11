@@ -2,7 +2,7 @@ import rospy
 from trajectory_controller import TrajectoryController
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 class WaypointFollower:
     def __init__(self, nominal_delta, lead_distance, follow_distance):
