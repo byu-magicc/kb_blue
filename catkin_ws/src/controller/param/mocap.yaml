@@ -7,6 +7,14 @@ pose_controller:
   close_position: 0.10
   close_heading: 0.17
 
+retry_controller:
+  distance: 2.0
+  close: 0.10
+
+line_up_back_controller:
+  distance: 3.0
+  close: 0.10
+
 saturation:
   velocity_max: 1.0
   velocity_min: -1.0

@@ -4,7 +4,7 @@ waypoint_follower:
   follow_distance: 0.8
 
 pose_controller:
-  close_distance: 0.05
+  close_position: 0.05
   close_heading: 0.087266 # 5 degrees
 
 retry_controller:

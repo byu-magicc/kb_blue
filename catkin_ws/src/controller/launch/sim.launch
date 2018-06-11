@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
 
-    <rosparam command="load" file="$(find controller)/param/test.yaml" />
+    <rosparam command="load" file="$(find controller)/param/default.yaml" />
 
-    <!--
     <node name="simulator" pkg="controller" type="simulator.py" output="screen"/>
--->
     <node name="manager" pkg="controller" type="master.py" output="screen"/>
 
 </launch>
