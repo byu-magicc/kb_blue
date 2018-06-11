@@ -1,0 +1,11 @@
+<launch>
+
+<node name="inertialsense" pkg="inertial_sense" type="inertial_sense_node">
+  <remap from="imu1" to="imu/data"/>
+</node>
+
+<node name="kb_driver" pkg="kb_utils" type="kb_driver.py" args="/dev/ttyTHS2"/>
+
+<node name="ll_controller" pkg="controller" type="lowlevel_control_oo.py"/>
+
+</launch>

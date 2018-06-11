@@ -1,0 +1,26 @@
+<launch>
+
+<node name="vrpn" pkg="vrpn_client_ros" type="vrpn_client_node">
+  <param name="server" value="192.168.0.204"/>
+  <param name="refresh_tracker_frequency" value="10"/>
+</node>
+
+<node name="vrpn_transform" pkg="vrpn_transform" type="vrpn_transform_node">
+  <remap from="vrpn_client_node/Leo/pose" to="/vrpn/kbcar2/pose"/>
+  <remap from="NWU/vrpn_client_node/Leo/pose" to="NWU/vrpn/kbcar2/pose"/>
+  <remap from="NED/vrpn_client_node/Leo/pose" to="NED/vrpn/kbcar2/pose"/>
+</node>
+
+<node name="mocap_translate" pkg="controller" type="mocap_translate.py">
+  <remap from="pose_in" to="/NWU/vrpn/kbcar2/pose"/>
+</node>
+
+<node name="inertialsense" pkg="inertial_sense" type="inertial_sense_node">
+  <remap from="imu1" to="imu/data"/>
+</node>
+
+<node name="kb_driver" pkg="kb_utils" type="kb_driver.py" args="/dev/ttyTHS2"/>
+
+<node name="ll_controller" pkg="controller" type="lowlevel_control_oo.py"/>
+
+</launch>

@@ -80,9 +80,9 @@ class Master:
         self.kiss_controller = KissController()
 
         # ROS pub/sub
+        self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
         self.enc_sub = rospy.Subscriber("encoder", Encoder, self.encoder_callback)
-        self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
         self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
     def encoder_callback(self, msg):

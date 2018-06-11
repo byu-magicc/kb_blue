@@ -184,6 +184,14 @@ class LowLevelControl:
 
         self.time_prev = None
 
+        # publisher, vel_com(mand), steer_com(mand)
+        self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
+
+        # debug publishers
+        self.vel_filtered_pub = rospy.Publisher( "debug/vel_filtered", Float64, queue_size=1 )
+        self.vel_des_filtered_pub = rospy.Publisher( "debug/vel_des_filtered", Float64, queue_size=1 )
+        self.steering_angle_pub = rospy.Publisher( "debug/steering_angle", Float64, queue_size=1 )
+
         # subscribers
         # -- current frame omega
         self.imu_sub = rospy.Subscriber( "imu/data", Imu, self.getOmega )
@@ -193,14 +201,6 @@ class LowLevelControl:
         self.drive_sub = rospy.Subscriber( "drive", Drive, self.getDesired )
         # -- safety pilot over ride boolean flag __'topic', mesage type, callback name__
         self.safe_override_sub = rospy.Subscriber( "safety_pilot_override", Bool, self.getSafe )
-
-        # publisher, vel_com(mand), steer_com(mand)
-        self.command_pub = rospy.Publisher( "command", Command, queue_size=1 )
-
-        # debug publishers
-        self.vel_filtered_pub = rospy.Publisher( "debug/vel_filtered", Float64, queue_size=1 )
-        self.vel_des_filtered_pub = rospy.Publisher( "debug/vel_des_filtered", Float64, queue_size=1 )
-        self.steering_angle_pub = rospy.Publisher( "debug/steering_angle", Float64, queue_size=1 )
 
 
 
@@ -228,11 +228,12 @@ class LowLevelControl:
 
 
         # inertialsense coordinate has z in opposite direction
-        omega_cur_average = -np.mean( self.omega_raw_buffer )
+        if len(self.omega_raw_buffer) > 0:
+            omega_cur_average = -np.mean( self.omega_raw_buffer )
 
-        if abs(self.vel_cur) > 0.1:
-            self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
-            self.steer_prev = self.steer_cur
+            if abs(self.vel_cur) > 0.1:
+                self.steer_cur = self.steer_alpha * self.steer_prev + self.steer_alpha_sf1 * atan( omega_cur_average * self.whl_base / self.vel_cur )
+                self.steer_prev = self.steer_cur
         #
 
         # ======================================
