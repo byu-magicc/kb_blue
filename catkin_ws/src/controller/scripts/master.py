@@ -55,6 +55,7 @@ class Master:
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
         self.velocity_min = rospy.get_param("saturation/velocity_min", -1.0)
         self.steering_max = rospy.get_param("saturation/steering_max", 0.2)
+        self.plot_gui = rospy.get_param("gui/plot", True)
 
         # load mission
         self.waypoints_there = rospy.get_param("mission/waypoints_there")
@@ -83,7 +84,9 @@ class Master:
         self.command_pub = rospy.Publisher("drive", Drive, queue_size=1)
         self.pose_sub = rospy.Subscriber("pose", Pose2D, self.pose_callback)
         self.enc_sub = rospy.Subscriber("encoder", Encoder, self.encoder_callback)
-        self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
+
+        if self.plot_gui:
+            self.plot_timer = rospy.Timer(rospy.Duration(0.1), self.plotting_callback)
 
     def encoder_callback(self, msg):
         self.encoder_distance = msg.dist
