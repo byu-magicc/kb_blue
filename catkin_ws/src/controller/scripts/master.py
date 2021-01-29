@@ -39,6 +39,8 @@ class Master:
         self.encoder_start_retry = 0.0
         self.encoder_start_line_up_back = 0.0
 
+        self.kiss_start_time = None
+
         self.last_update_time = None
 
         # parameters
@@ -50,6 +52,7 @@ class Master:
         self.retry_distance = rospy.get_param("retry_controller/distance", 2.0)
         self.retry_close = rospy.get_param("retry_controller/close", 0.10)
         self.kiss_close = rospy.get_param("kiss_controller/close", 0.10)
+        self.kiss_timeout = rospy.get_param("Kiss_controller/timeout", 6.0)
         self.line_up_back_distance = rospy.get_param("line_up_back_controller/distance", 3.0)
         self.line_up_back_close = rospy.get_param("line_up_back_controller/close", 0.10)
         self.velocity_max = rospy.get_param("saturation/velocity_max", 1.0)
@@ -145,6 +148,7 @@ class Master:
             if np.linalg.norm(position - self.pucker_pose[:2]) < self.pucker_close_distance:
                 if abs(heading - self.pucker_pose[2]) < self.pucker_close_heading:
                     self.encoder_start_kiss = self.encoder_distance
+                    self.kiss_start_time = rospy.Time.now()
                     self.state = Master.STATE_KISS_BRIGHAM_THERE
                     rospy.loginfo("Setting state to: KISS_BRIGHAM_THERE")
                 else:
@@ -166,7 +170,7 @@ class Master:
 
             velocity, steering = self.kiss_controller.run(self.pucker_dist, relative_enc, dt)
 
-            if np.abs(self.pucker_dist - relative_enc) < self.kiss_close:
+            if np.abs(self.pucker_dist - relative_enc) < self.kiss_close or (rospy.Time.now() - self.kiss_start_time).to_sec() > self.kiss_timeout:
                 self.state = Master.STATE_KISS_BRIGHAM_BACK
                 rospy.loginfo("Setting state to: KISS_BRIGHAM_BACK")
 
